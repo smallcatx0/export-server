@@ -3,3 +3,4 @@ vendor
 go.sum
 *.exe
 logs/*
+__debug_bin

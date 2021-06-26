@@ -22,14 +22,14 @@ func MysqlInit() {
 
 	Db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		log.Panic("[store_db] open connDB err ", err)
+		log.Panic("[dao] open connDB err ", err)
 	}
 	if debug {
 		Db = Db.Debug()
 	}
 	sqlDb, err := Db.DB()
 	if err != nil {
-		log.Panic("[store_db] get mysqlDb err ", err)
+		log.Panic("[dao] get mysqlDb err ", err)
 	}
 	sqlDb.SetMaxIdleConns(maxIdleConns)
 	sqlDb.SetMaxOpenConns(maxOpenConns)
@@ -37,8 +37,8 @@ func MysqlInit() {
 
 	err = sqlDb.Ping()
 	if err != nil {
-		log.Panic("[store_db] ping mysql err ", err)
+		log.Panic("[dao] ping mysql err ", err)
 	}
-	log.Print("[store_db] ping mysql err ")
+	log.Print("[dao] ping mysql err ")
 	MDB = Db
 }

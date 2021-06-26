@@ -2,9 +2,9 @@ package v1
 
 import (
 	"export-server/middleware/httpmd"
+	"export-server/models/page"
 	"export-server/valid"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,11 +39,11 @@ func Export(c *gin.Context) {
 		r.Fail(c, err)
 		return
 	}
-	switch strings.ToLower(param.SourceType) {
-	case "http":
-		// 1. 获取参数哈希存日志
-		// 2. 准备参数丢任务队列中
-		// 3. 返回参数哈希
+	exportServ := new(page.ExportServ)
+	data, err := exportServ.Handel(c, param)
+	if err != nil {
+		r.Fail(c, err)
+		return
 	}
-
+	r.Succ(c, data)
 }
