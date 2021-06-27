@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"export-server/models/dao"
 	"export-server/models/dao/mdb"
+	"export-server/models/dao/rdb"
 	"export-server/pkg/glog"
 	"export-server/valid"
+	"fmt"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -23,7 +25,7 @@ func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (data inte
 		return
 	}
 	hash := md5.Sum(paramBt)
-	hashKey := string(hash[:])
+	hashKey := fmt.Sprintf("%x", hash)
 	data = map[string]string{"hash_key": hashKey}
 	// 2. 记录请求日志
 	err = e.RecordLog(hashKey, param)
@@ -33,13 +35,22 @@ func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (data inte
 	// 3. 准备参数丢任务队列中
 	switch strings.ToLower(param.SourceType) {
 	case "http":
+		msgBody := &rdb.HttpBody{
+			TaskId: hashKey,
+			Method: param.SourceHTTP.Method,
+			Url:    param.SourceHTTP.URL,
+			Param:  param.SourceHTTP.Param,
+			Header: param.SourceHTTP.Header,
+		}
+		httpQueue := &rdb.Mq{Key: "task:http_q"}
+		// 消息入队
+		httpQueue.Push(msgBody)
 	}
 	return
 }
 
 func (e *ExportServ) RecordLog(hashKey string, param *valid.ExportParam) error {
 	// 存数据库
-
 	expLog := &mdb.ExportLog{
 		HashKey:    hashKey,
 		Title:      param.Title,
@@ -48,7 +59,7 @@ func (e *ExportServ) RecordLog(hashKey string, param *valid.ExportParam) error {
 		Callback:   param.CallBack,
 		UserId:     param.UserID,
 	}
-	switch strings.ToLower(param.EXTType) {
+	switch strings.ToLower(param.SourceType) {
 	case "http":
 		sourse, err := json.Marshal(param.SourceHTTP)
 		if err != nil {
@@ -63,10 +74,13 @@ func (e *ExportServ) RecordLog(hashKey string, param *valid.ExportParam) error {
 			return err
 		}
 		expLog.Param = string(sourse)
+	default:
+		expLog.Param = "{}"
 	}
 	res := dao.MDB.Create(expLog)
 	if res.Error != nil {
 		glog.Error("exportlog insert err", "", res.Error.Error())
+		return res.Error
 	}
 	return nil
 }

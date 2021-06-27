@@ -11,8 +11,8 @@ type ExportLog struct {
 	Param      string    `gorm:"column:param"`       //请求参数（json）
 	UserId     string    `gorm:"column:user_id"`     //用户id
 	Callback   string    `gorm:"column:callback"`    //回调地址
-	CreateAt   time.Time `gorm:"column:create_at"`
-	UpdateAt   time.Time `gorm:"column:update_at"`
+	CreatedAt  time.Time `gorm:"column:created_at"`
+	UpdatedAt  time.Time `gorm:"column:updated_at"`
 }
 
 func (e *ExportLog) TableName() string {

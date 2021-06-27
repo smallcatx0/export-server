@@ -1,9 +1,11 @@
 package httpmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"export-server/pkg/conf"
 	glog "export-server/pkg/glog"
+	"io/ioutil"
 
 	"github.com/gin-gonic/gin"
 	uuid "github.com/satori/go.uuid"
@@ -33,7 +35,8 @@ func SetHeader(c *gin.Context) {
 func ReqLog(c *gin.Context) {
 	if conf.IsDebug() {
 		path := c.Request.RequestURI
-		requestData, _ := c.Copy().GetRawData()
+		requestData, _ := c.GetRawData()
+		c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(requestData))
 		header, _ := json.Marshal(c.Request.Header)
 		if _, ok := LogWrite[path]; ok {
 			// 白名单不记录
