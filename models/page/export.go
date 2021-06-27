@@ -3,6 +3,7 @@ package page
 import (
 	"crypto/md5"
 	"encoding/json"
+	"export-server/bootstrap/global"
 	"export-server/models/dao"
 	"export-server/models/dao/mdb"
 	"export-server/models/dao/rdb"
@@ -42,7 +43,7 @@ func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (data inte
 			Param:  param.SourceHTTP.Param,
 			Header: param.SourceHTTP.Header,
 		}
-		httpQueue := &rdb.Mq{Key: "task:http_q"}
+		httpQueue := &rdb.Mq{Key: global.TaskHttp}
 		// 消息入队
 		httpQueue.Push(msgBody)
 	}

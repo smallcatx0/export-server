@@ -3,7 +3,7 @@ module export-server
 go 1.14
 
 require (
-	gitee.com/smallcatx0/gequest v1.0.2 // indirect
+	gitee.com/smallcatx0/gequest v1.0.2
 	github.com/gin-gonic/gin v1.7.2
 	github.com/go-redis/redis/v8 v8.10.0
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible

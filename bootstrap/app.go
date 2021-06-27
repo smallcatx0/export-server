@@ -128,3 +128,8 @@ func InitDB() {
 		panic(err)
 	}
 }
+
+// InitConsumer 初始化消费者
+func InitConsumer() {
+
+}
