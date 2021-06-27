@@ -40,20 +40,15 @@ func (mq *Mq) BPop(hander func(string)) {
 	}
 }
 
-type HttpBody struct {
-	TaskId    string
-	Url       string
-	Method    string
-	Param     map[string]interface{}
-	Header    map[string]string
-	RequestId string
+type ExportTask struct {
+	TaskID string
 }
 
-func (b *HttpBody) String() string {
-	jsonstr, _ := json.Marshal(b)
+func (t *ExportTask) String() string {
+	jsonstr, _ := json.Marshal(t)
 	return string(jsonstr)
 }
 
-func (b *HttpBody) Build(jsonStr string) (err error) {
-	return json.Unmarshal([]byte(jsonStr), b)
+func (t *ExportTask) Build(jsonStr string) (err error) {
+	return json.Unmarshal([]byte(jsonStr), t)
 }

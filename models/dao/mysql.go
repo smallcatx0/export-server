@@ -39,6 +39,6 @@ func MysqlInit() {
 	if err != nil {
 		log.Panic("[dao] ping mysql err ", err)
 	}
-	log.Print("[dao] ping mysql err ")
+	log.Print("[dao] ping mysql succ")
 	MDB = Db
 }

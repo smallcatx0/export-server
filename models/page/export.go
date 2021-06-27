@@ -36,16 +36,12 @@ func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (data inte
 	// 3. 准备参数丢任务队列中
 	switch strings.ToLower(param.SourceType) {
 	case "http":
-		msgBody := &rdb.HttpBody{
-			TaskId: hashKey,
-			Method: param.SourceHTTP.Method,
-			Url:    param.SourceHTTP.URL,
-			Param:  param.SourceHTTP.Param,
-			Header: param.SourceHTTP.Header,
+		task := &rdb.ExportTask{
+			TaskID: hashKey,
 		}
-		httpQueue := &rdb.Mq{Key: global.TaskHttp}
+		httpQueue := &rdb.Mq{Key: global.TaskHttpKey}
 		// 消息入队
-		httpQueue.Push(msgBody)
+		httpQueue.Push(task)
 	}
 	return
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"export-server/models/dao"
+	"export-server/models/data"
 	"export-server/pkg/conf"
 	"export-server/pkg/glog"
 
@@ -123,6 +124,7 @@ func InitLog() {
 // InitDB 初始化db
 func InitDB() {
 	dao.MysqlInit()
+
 	err := dao.InitRedis()
 	if err != nil {
 		panic(err)
@@ -131,5 +133,6 @@ func InitDB() {
 
 // InitConsumer 初始化消费者
 func InitConsumer() {
-
+	c := conf.AppConf
+	new(data.HttpWorker).Run(c.GetInt("taskPool.httpWorker"))
 }

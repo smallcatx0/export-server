@@ -30,5 +30,6 @@ func ConnRedis(opt *redis.Options) error {
 		log.Printf("[dao] redis fail, err=%s", err)
 		return err
 	}
+	log.Print("[dao] redis Ping succ")
 	return nil
 }

@@ -21,7 +21,7 @@ glog.InitLog2std("Info")
 #### 使用
 
 ```go
-// Debug Info Warn Error DPanic Painc Fatal 等级的日志均有如下方法
+// 、Debug、Info、Warn、Error、DPanic、Painc、Fatal 等级的日志均有如下方法
 glog.Debug("msg")
 glog.Debug("msg", "requestId", "extra one", "extra two")
 glog.DebugT("msg", "requestId", param, param) // param都会被json序列化
