@@ -17,7 +17,7 @@ import (
 
 type ExportServ struct{}
 
-func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (data interface{}, err error) {
+func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (ret interface{}, err error) {
 	// 1. 获取参数的哈希
 	// TODO: 当数据源为直传时，要不要将 SourceRaw 也计算到哈希里去
 	paramBt, err := json.Marshal(param)
@@ -27,7 +27,7 @@ func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (data inte
 	}
 	hash := md5.Sum(paramBt)
 	hashKey := fmt.Sprintf("%x", hash)
-	data = map[string]string{"hash_key": hashKey}
+	ret = map[string]string{"hash_key": hashKey}
 	// 2. 记录请求日志
 	err = e.RecordLog(hashKey, param)
 	if err != nil {
@@ -43,6 +43,12 @@ func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (data inte
 		// 消息入队
 		httpQueue.Push(task)
 	}
+
+	// TODO: 调试
+	// 先从第一页开始
+	// totalPage, list := data.GetData(param.SourceHTTP, 1)
+	// log.Print(list, totalPage)
+
 	return
 }
 

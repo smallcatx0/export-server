@@ -11,6 +11,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/viper v1.8.0
 	github.com/stretchr/testify v1.7.0
+	github.com/tidwall/gjson v1.8.0
 	go.uber.org/zap v1.17.0
 	golang.org/x/text v0.3.5 // indirect
 	gorm.io/driver/mysql v1.1.1

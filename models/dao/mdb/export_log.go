@@ -3,7 +3,7 @@ package mdb
 import "time"
 
 type ExportLog struct {
-	Id         int       `gorm:"column:id" json:"id"`
+	Id         int       `gorm:"column:id;primary_key;auto_increment" json:"id"`
 	HashKey    string    `gorm:"column:hash_key" json:"hash_key"`       //参数哈希
 	Title      string    `gorm:"column:title" json:"title"`             //导出标题
 	ExtType    string    `gorm:"column:ext_type" json:"ext_type"`       //导出类型(文件后缀)

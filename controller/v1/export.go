@@ -32,6 +32,7 @@ func PageDemo(c *gin.Context) {
 	r.Succ(c, data)
 }
 
+// 数据导出
 func Export(c *gin.Context) {
 	param := &valid.ExportParam{}
 	err := valid.BindAndCheck(c, param)

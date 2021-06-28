@@ -8,8 +8,13 @@ import (
 	"export-server/models/dao/rdb"
 	"export-server/pkg/glog"
 	"export-server/valid"
+	"fmt"
+	"log"
+	"net/url"
+	"strings"
 
 	request "gitee.com/smallcatx0/gequest"
+	"github.com/tidwall/gjson"
 )
 
 type HttpWorker struct {
@@ -26,7 +31,7 @@ func (w *HttpWorker) Run(pool int) {
 	w.Cli = request.New("export-server", "", 3000).Debug(true)
 	// 缓冲区越大，程序宕机后丢消息越多
 	w.taskCh = make(chan *rdb.ExportTask, 100)
-
+	log.Print(pool)
 	// 启动工作协程
 	w.startWorker(pool)
 
@@ -46,8 +51,9 @@ func (w *HttpWorker) startWorker(pool int) {
 	for i := 0; i < pool; i++ {
 		go func() {
 			defer func() {
-				// TODO: 防止协程奔溃
-				recover()
+				if err := recover(); err != nil {
+					glog.Error("[runtime] err ,recoverd", "", fmt.Errorf("%v", err).Error())
+				}
 			}()
 			for {
 				w.work()
@@ -75,17 +81,91 @@ func (w *HttpWorker) work() {
 	if err != nil {
 		glog.Error("json.Unmarshal err " + err.Error())
 	}
-	// 获取数据源的数据
 	// TODO: 并行请求 让单个任务更快完成
-	w.getdata(requestParam.Method, requestParam.URL, requestParam.Param, requestParam.Header)
-
+	// 获取数据源的数据
+	totalPage, list := w.getSource(requestParam, 1) // 第一页
+	log.Print(list, totalPage)
 }
 
-func (w *HttpWorker) getdata(
-	method, url string,
-	param map[string]interface{},
-	headers map[string]string,
-) {
+func (w *HttpWorker) getSource(reqParam valid.SourceHTTP, page int) (totalPage int, list []map[string]interface{}) {
 	// 分页逐个请求
+	reqParam.Param["page"] = page
+	method := strings.ToLower(reqParam.Method)
+	req := w.Cli.SetMethod(method).
+		SetUri(reqParam.URL).
+		AddHeaders(reqParam.Header)
+	switch method {
+	case "post":
+		req.SetJson(reqParam.Param)
+	case "get":
+		q := url.Values{}
+		for k, v := range reqParam.Param {
+			q.Add(k, fmt.Sprintf("%v", v))
+		}
+		req.SetQuery(q)
+	}
+	res, err := req.Send()
+	if err != nil {
+		// TODO: httpq请求失败需要重试
+		glog.Error("http request err", "", err.Error())
+		return
+	}
+	bodyStr, err := res.ToString()
+	if err != nil {
+		glog.Error("http respons body read err", "", err.Error())
+		return
+	}
+	bodyJson := gjson.Parse(bodyStr)
+	totalPage = int(bodyJson.Get("data.pagetag.total_page").Int())
+	// 循环获取数据，
+	listRaw := bodyJson.Get("data.data").String()
+	list = make([]map[string]interface{}, 0, 10)
+	err = json.Unmarshal([]byte(listRaw), &list)
+	if err != nil {
+		glog.Error("json 解析失败")
+		return
+	}
+	return
+}
 
+func GetData(reqParam valid.SourceHTTP, page int) (totalPage int, list []map[string]interface{}) {
+	cli := request.New("export-server", "", 3000).Debug(true)
+	// 分页逐个请求
+	reqParam.Param["page"] = page
+	method := strings.ToLower(reqParam.Method)
+	req := cli.SetMethod(method).
+		SetUri(reqParam.URL).
+		AddHeaders(reqParam.Header)
+	switch method {
+	case "post":
+		req.SetJson(reqParam.Param)
+	case "get":
+		q := url.Values{}
+		for k, v := range reqParam.Param {
+			q.Add(k, fmt.Sprintf("%v", v))
+		}
+		req.SetQuery(q)
+	}
+	res, err := req.Send()
+	if err != nil {
+		// TODO: 需要重试
+		glog.Error("http request err", "", err.Error())
+		return
+	}
+	bodyStr, err := res.ToString()
+	if err != nil {
+		glog.Error("http respons body read err", "", err.Error())
+		return
+	}
+	bodyJson := gjson.Parse(bodyStr)
+	totalPage = int(bodyJson.Get("data.pagetag.total_page").Int())
+	// 循环获取数据，
+	listRaw := bodyJson.Get("data.data").String()
+	list = make([]map[string]interface{}, 0, 10)
+	err = json.Unmarshal([]byte(listRaw), &list)
+	if err != nil {
+		glog.Error("json 解析失败")
+		return
+	}
+	return
 }
