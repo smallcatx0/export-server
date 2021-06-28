@@ -12,6 +12,8 @@ import (
 	"fmt"
 	"strings"
 
+	// request "gitee.com/smallcatx0/gequest"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -46,7 +48,10 @@ func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (ret inter
 
 	// TODO: 调试
 	// 先从第一页开始
-	// totalPage, list := data.GetData(param.SourceHTTP, 1)
+	// worker := &data.HttpWorker{
+	// 	Cli: request.New("export-server", "", 3000).Debug(true),
+	// }
+	// totalPage, list := worker.GetSource(param.SourceHTTP, 1)
 	// log.Print(list, totalPage)
 
 	return
