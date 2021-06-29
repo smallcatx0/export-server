@@ -82,3 +82,16 @@ func AppendFile(filename string, data []byte, perm os.FileMode) error {
 	}
 	return err
 }
+
+// Map2Arr 根据keys顺序 将字典转为数组
+func Map2Arr(amap map[string]interface{}, keys []string) []interface{} {
+	ret := make([]interface{}, 0, len(amap))
+	for _, key := range keys {
+		if v, ok := amap[key]; ok {
+			ret = append(ret, v)
+		} else {
+			ret = append(ret, "-")
+		}
+	}
+	return ret
+}
