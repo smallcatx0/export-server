@@ -7,7 +7,7 @@ import (
 )
 
 func TestFile(t *testing.T) {
-	glog.InitLog2file("/home/logs/tank/curr.log", "Info")
+	glog.InitLog2file("/tmp/logs/curr.log", "Info")
 	param := map[string]interface{}{
 		"name": "kui",
 		"age":  18,

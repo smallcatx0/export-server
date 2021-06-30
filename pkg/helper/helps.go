@@ -90,6 +90,7 @@ func Map2Arr(amap map[string]interface{}, keys []string) []interface{} {
 		if v, ok := amap[key]; ok {
 			ret = append(ret, v)
 		} else {
+			// TODO: 零值处理
 			ret = append(ret, "-")
 		}
 	}

@@ -1,8 +1,8 @@
 package excel
 
 import (
-	"encoding/json"
 	"export-server/pkg/helper"
+	"fmt"
 	"strconv"
 
 	"github.com/360EntSecGroup-Skylar/excelize"
@@ -10,26 +10,12 @@ import (
 )
 
 type ExcelRecorder struct {
-	FilePath string
-	ExcelFp  *excelize.File
-	Sheet    string
-}
-type Pos struct {
-	X, Y int
-	Addr string
-}
-
-// TODO: excel地址转坐标
-
-// Convert 坐标转Excel地址
-func (p *Pos) Convert() {
-	p.Addr = X2col(p.X) + strconv.Itoa(p.Y)
-}
-
-func (p *Pos) String() string {
-	// 先转化
-	p.Convert()
-	return p.Addr
+	FilePath         string
+	ExcelFp          *excelize.File
+	Sheet            string
+	Limit            int
+	Page             int
+	FileNameTemplate string
 }
 
 func NewExcelRecorder(path string) *ExcelRecorder {
@@ -41,7 +27,19 @@ func NewExcelRecorder(path string) *ExcelRecorder {
 	return instance
 }
 
-func (e *ExcelRecorder) JsonListWrite(p Pos, jsonStr string, isFirst bool) (Pos, error) {
+func NewExcelRecorderPage(template string, limit int) *ExcelRecorder {
+	ins := &ExcelRecorder{
+		ExcelFp:          excelize.NewFile(),
+		Sheet:            "Sheet1",
+		Page:             1,
+		Limit:            limit,
+		FileNameTemplate: template,
+	}
+	return ins
+}
+
+// JsonListWrite 将json列表写入excel中
+func (e *ExcelRecorder) JsonListWrite(p Pos, jsonStr string, isFirst bool) Pos {
 	result := gjson.Parse(jsonStr)
 	keys := make([]string, 0)
 	for i, line := range result.Array() {
@@ -52,35 +50,18 @@ func (e *ExcelRecorder) JsonListWrite(p Pos, jsonStr string, isFirst bool) (Pos,
 				continue
 			}
 		}
-		lintMap := line.Value().(map[string]interface{})
-		lineValues := helper.Map2Arr(lintMap, keys)
+		p = e.JsonWrite(p, keys, line.String())
+	}
+	return p
+}
+
+// JsonWrite 单条json 按照keys的键顺序写入excel
+// ajson格式 `{"key1":"val1", "key2":"val2"}`
+func (e *ExcelRecorder) JsonWrite(p Pos, keys []string, ajson ...string) Pos {
+	for _, line := range ajson {
+		aline := gjson.Parse(line).Value().(map[string]interface{})
+		lineValues := helper.Map2Arr(aline, keys)
 		e.ExcelFp.SetSheetRow(e.Sheet, p.String(), &lineValues)
-		p.Y += 1
-	}
-	return p, nil
-}
-
-// JsonListWrite2 效率还不如 JsonListWrite
-func (e *ExcelRecorder) JsonListWrite2(p Pos, jsonStr string, isFirst bool) (Pos, error) {
-	firstline := gjson.Get(jsonStr, "0").String()
-	keys := JsonKeys(firstline)
-	lists := make([]map[string]interface{}, 0)
-	err := json.Unmarshal([]byte(jsonStr), &lists)
-	if err != nil {
-		return p, err
-	}
-	if !isFirst {
-		lists = lists[1:]
-	}
-	mline := List2Arrs(lists, keys)
-	e.WriteLines(p, mline)
-	return p, nil
-}
-
-// WriteLines 多行写入
-func (e *ExcelRecorder) WriteLines(p Pos, lines [][]interface{}) Pos {
-	for _, line := range lines {
-		e.ExcelFp.SetSheetRow(e.Sheet, p.String(), &line)
 		p.Y += 1
 	}
 	return p
@@ -88,6 +69,9 @@ func (e *ExcelRecorder) WriteLines(p Pos, lines [][]interface{}) Pos {
 
 // Save 保存
 func (e *ExcelRecorder) Save() error {
+	if e.FileNameTemplate != "" {
+		e.FilePath = fmt.Sprintf(e.FileNameTemplate, e.Page)
+	}
 	helper.TouchDir(e.FilePath)
 	if err := e.ExcelFp.SaveAs(e.FilePath); err != nil {
 		return err
@@ -104,7 +88,51 @@ func List2Arrs(lines []map[string]interface{}, keys []string) [][]interface{} {
 	return ret
 }
 
-func X2col(x int) string {
+// 分页写入
+func (e *ExcelRecorder) WritePagpenate(p Pos, lineJson string, htable string) Pos {
+	lines := gjson.Parse(lineJson).Array()
+	if htable == "" {
+		htable = lines[0].String()
+		lines = lines[1:]
+	}
+	keys := JsonKeys(htable)
+	for _, aline := range lines {
+		if p.Y >= e.Limit {
+			// 保存文件
+			e.Save()
+			// 新生成文件
+			e.ExcelFp = excelize.NewFile()
+			e.Page += 1
+			p.Y = 1
+			// 写表头
+			p = e.JsonWrite(p, keys, htable)
+		}
+		p = e.JsonWrite(p, keys, aline.String())
+	}
+	// 保存
+	e.Save()
+	return p
+}
+
+type Pos struct {
+	X, Y           int
+	Row, Col, Addr string
+}
+
+// Convert 坐标转Excel地址
+func (p *Pos) Convert() {
+	p.Col = x2col(p.X)
+	p.Row = strconv.Itoa(p.Y)
+	p.Addr = p.Col + p.Row
+}
+
+func (p *Pos) String() string {
+	// 先转化
+	p.Convert()
+	return p.Addr
+}
+
+func x2col(x int) string {
 	result := ""
 	for x > 0 {
 		x--
@@ -113,6 +141,8 @@ func X2col(x int) string {
 	}
 	return result
 }
+
+// TODO: excel地址转坐标
 
 func JsonKeys(json string) []string {
 	keys := make([]string, 0)
