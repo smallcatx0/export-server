@@ -1,9 +1,13 @@
 package helper
 
 import (
+	"archive/zip"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 )
 
 // Empty 判断是否为空
@@ -95,4 +99,48 @@ func Map2Arr(amap map[string]interface{}, keys []string) []interface{} {
 		}
 	}
 	return ret
+}
+
+// FolderZip 文件夹压缩
+func FolderZip(src_dir string, zip_file_path string) {
+
+	// 预防：旧文件无法覆盖
+	os.RemoveAll(zip_file_path)
+
+	// 创建：zip文件
+	zipfile, _ := os.Create(zip_file_path)
+	defer zipfile.Close()
+
+	// 打开：zip文件
+	archive := zip.NewWriter(zipfile)
+	defer archive.Close()
+
+	// 遍历路径信息
+	filepath.Walk(src_dir, func(path string, info os.FileInfo, _ error) error {
+		// 如果是源路径，提前进行下一个遍历
+		if path == src_dir {
+			return nil
+		}
+
+		// 获取：文件头信息
+		header, _ := zip.FileInfoHeader(info)
+		header.Name = strings.TrimPrefix(path, src_dir)
+		fmt.Println(path, src_dir, header.Name)
+		// 判断：文件是不是文件夹
+		if info.IsDir() {
+			header.Name += `/`
+		} else {
+			// 设置：zip的文件压缩算法
+			header.Method = zip.Deflate
+		}
+
+		// 创建：压缩包头部信息
+		writer, _ := archive.CreateHeader(header)
+		if !info.IsDir() {
+			file, _ := os.Open(path)
+			defer file.Close()
+			io.Copy(writer, file)
+		}
+		return nil
+	})
 }

@@ -34,3 +34,8 @@ func TestMap2Arr(t *testing.T) {
 	res := helper.Map2Arr(aMap, keys)
 	assert.Equal(res, expect)
 }
+
+func TestZip(t *testing.T) {
+	ssrc := `D:\tmp\outExcel\a807a70cc66eeb3c0ff24450c6caed88`
+	helper.FolderZip(ssrc, `D:\tmp\outExcel\out.zip`)
+}

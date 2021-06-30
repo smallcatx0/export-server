@@ -100,8 +100,11 @@ func (w *HttpWorker) work() {
 	}
 	excelw.Save()
 	// 4. 压缩文件夹
+	// ...
 	// 5. 上传云 OOS
+	// ...
 	// 6. 修改任务状态 回写
+	// ..
 	// 7. 删除本地文件
 	dao.MDB.Where("hash_key=?", atask.TaskID)
 	log.Print("任务完成 ", atask.TaskID)
