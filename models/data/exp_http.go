@@ -9,10 +9,13 @@ import (
 	"export-server/pkg/conf"
 	"export-server/pkg/excel"
 	"export-server/pkg/glog"
+	"export-server/pkg/helper"
 	"export-server/valid"
 	"fmt"
 	"log"
 	"net/url"
+	"os"
+	"path"
 	"strings"
 
 	request "gitee.com/smallcatx0/gequest"
@@ -32,7 +35,7 @@ func (w *HttpWorker) Run(pool int) {
 	w.Tasks = &rdb.Mq{Key: global.TaskHttpKey}
 	w.Cli = request.New("export-server", "", 3000).Debug(true)
 	// 缓冲区越大，程序宕机后丢消息越多
-	w.taskCh = make(chan *rdb.ExportTask, 5)
+	w.taskCh = make(chan *rdb.ExportTask, 20)
 	log.Print(pool)
 	// 启动工作协程
 	w.startWorker(pool)
@@ -82,35 +85,52 @@ func (w *HttpWorker) work() {
 	err := json.Unmarshal([]byte(expLog.Param), &requestParam)
 	if err != nil {
 		glog.Error("json.Unmarshal err " + err.Error())
+		dao.MDB.Model(&expLog).Update("fail_reason", "参数解析失败："+err.Error())
+		return
 	}
 	// TODO: 并行请求 让单个任务更快完成
 	// 但也要保证顺序
 
-	// 2. 获取数据源的数据
-	totalPage, list := w.GetSource(requestParam, 1) // 第一页
-	// 3. 写入excel
-	excelTmpPath := conf.AppConf.GetString("storage.outexcel_tmp") + "/" + atask.TaskID
+	// 2. 获取数据源的数据 -> 3. 写入excel
+	totalPage, list := w.getSource(requestParam, 1) // 第一页
+	excelTmpPath := conf.AppConf.GetString("storage.outexcel_tmp")
 	filename := expLog.Title + "-%d." + expLog.ExtType
-	excelw := excel.NewExcelRecorderPage(excelTmpPath+"/"+filename, 200)
+	excelw := excel.NewExcelRecorderPage(path.Join(excelTmpPath, atask.TaskID, filename), 200)
 	p := excelw.WritePagpenate(excel.Pos{X: 1, Y: 1}, list, "", true)
 	for i := 2; i <= totalPage; i++ { // 循环获取剩下页
-		log.Printf("开始爬取%d页\n", i)
-		_, list = w.GetSource(requestParam, i)
+		log.Printf("开始抓取%d页\n", i)
+		_, list = w.getSource(requestParam, i)
 		p = excelw.WritePagpenate(p, list, "", false)
 	}
 	excelw.Save()
-	// 4. 压缩文件夹
+
+	// 4. 压缩文件夹 并删除源文件
+	zipFilePath := path.Join(excelTmpPath, atask.TaskID+".zip")
+	taskDir := path.Join(excelTmpPath, atask.TaskID)
+	helper.FolderZip(taskDir, zipFilePath)
+	os.RemoveAll(taskDir)
+
+	// 5. 上传云 OOS -> 删除本地文件
 	// ...
-	// 5. 上传云 OOS
-	// ...
-	// 6. 修改任务状态 回写
-	// ..
-	// 7. 删除本地文件
-	dao.MDB.Where("hash_key=?", atask.TaskID)
+
+	// 6. 修改任务状态，写文件
+	expLog.Status = mdb.ExportLog_status_succ
+	dao.MDB.Model(&expLog).Select("status").Updates(expLog)
+	// 创建文件数据
+	expFile := mdb.ExportFile{
+		HashKey: expLog.HashKey,
+		Path:    zipFilePath,
+		Type:    expLog.ExtType,
+	}
+	res := dao.MDB.Create(expFile)
+	if res.Error != nil {
+		glog.Error("exportfile insert err", "", res.Error.Error())
+		return
+	}
 	log.Print("任务完成 ", atask.TaskID)
 }
 
-func (w *HttpWorker) GetSource(reqParam valid.SourceHTTP, page int) (totalPage int, lists string) {
+func (w *HttpWorker) getSource(reqParam valid.SourceHTTP, page int) (totalPage int, lists string) {
 	// 分页逐个请求
 	reqParam.Param["page"] = page
 	method := strings.ToLower(reqParam.Method)

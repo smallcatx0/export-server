@@ -2,12 +2,10 @@ package helper
 
 import (
 	"archive/zip"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 )
 
 // Empty 判断是否为空
@@ -94,8 +92,7 @@ func Map2Arr(amap map[string]interface{}, keys []string) []interface{} {
 		if v, ok := amap[key]; ok {
 			ret = append(ret, v)
 		} else {
-			// TODO: 零值处理
-			ret = append(ret, "-")
+			ret = append(ret, nil)
 		}
 	}
 	return ret
@@ -124,8 +121,7 @@ func FolderZip(src_dir string, zip_file_path string) {
 
 		// 获取：文件头信息
 		header, _ := zip.FileInfoHeader(info)
-		header.Name = strings.TrimPrefix(path, src_dir)
-		fmt.Println(path, src_dir, header.Name)
+		header.Name, _ = filepath.Rel(src_dir, path)
 		// 判断：文件是不是文件夹
 		if info.IsDir() {
 			header.Name += `/`

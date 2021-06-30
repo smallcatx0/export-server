@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.38.68
 	github.com/gin-gonic/gin v1.7.2
 	github.com/go-redis/redis/v8 v8.10.0
+	github.com/golang-module/carbon v1.4.0
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/lestrrat-go/strftime v1.0.4 // indirect
 	github.com/satori/go.uuid v1.2.0
