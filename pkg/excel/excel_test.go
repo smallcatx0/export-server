@@ -5,6 +5,7 @@ import (
 	"export-server/pkg/excel"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,9 +72,12 @@ func TestWritPaging(t *testing.T) {
 	input, _ := ioutil.ReadFile("./.assets/list-5000.json")
 	oj := excel.NewExcelRecorderPage("/tmp/outExcel/list-5w-%d.xlsx", pageLimit)
 	p := excel.Pos{X: 1, Y: 1}
+	// 先手动写表头
 	for i := 0; i < 10; i++ {
-		p = oj.WritePagpenate(p, string(input), "")
+		p = oj.WritePagpenate(p, string(input), "", i == 0)
+		log.Println("write 5000 row ", i)
 	}
+	oj.Save()
 }
 
 func BenchmarkJson2Excel(b *testing.B) {

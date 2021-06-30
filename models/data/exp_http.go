@@ -6,6 +6,8 @@ import (
 	"export-server/models/dao"
 	"export-server/models/dao/mdb"
 	"export-server/models/dao/rdb"
+	"export-server/pkg/conf"
+	"export-server/pkg/excel"
 	"export-server/pkg/glog"
 	"export-server/valid"
 	"fmt"
@@ -65,7 +67,7 @@ func (w *HttpWorker) startWorker(pool int) {
 // work 处理单个任务
 func (w *HttpWorker) work() {
 	atask := <-w.taskCh
-	// 数据库中查询任务详情
+	// 1. 数据库中查询任务详情
 	expLog := mdb.ExportLog{}
 	result := dao.MDB.Where("hash_key=?", atask.TaskID).First(&expLog)
 	if result.Error != nil {
@@ -82,19 +84,30 @@ func (w *HttpWorker) work() {
 		glog.Error("json.Unmarshal err " + err.Error())
 	}
 	// TODO: 并行请求 让单个任务更快完成
-	// 获取数据源的数据
+	// 但也要保证顺序
+
+	// 2. 获取数据源的数据
 	totalPage, list := w.GetSource(requestParam, 1) // 第一页
-	// 写入excl
-
-	// for i := 2; i < totalPage; i++ {
-	// 	_, currlist := w.GetSource(requestParam, i)
-
-	// }
-	// 写入excl文件
-	log.Print(list, totalPage)
+	// 3. 写入excel
+	excelTmpPath := conf.AppConf.GetString("storage.outexcel_tmp") + "/" + atask.TaskID
+	filename := expLog.Title + "-%d." + expLog.ExtType
+	excelw := excel.NewExcelRecorderPage(excelTmpPath+"/"+filename, 200)
+	p := excelw.WritePagpenate(excel.Pos{X: 1, Y: 1}, list, "", true)
+	for i := 2; i <= totalPage; i++ { // 循环获取剩下页
+		log.Printf("开始爬取%d页\n", i)
+		_, list = w.GetSource(requestParam, i)
+		p = excelw.WritePagpenate(p, list, "", false)
+	}
+	excelw.Save()
+	// 4. 压缩文件夹
+	// 5. 上传云 OOS
+	// 6. 修改任务状态 回写
+	// 7. 删除本地文件
+	dao.MDB.Where("hash_key=?", atask.TaskID)
+	log.Print("任务完成 ", atask.TaskID)
 }
 
-func (w *HttpWorker) GetSource(reqParam valid.SourceHTTP, page int) (totalPage int, list []map[string]interface{}) {
+func (w *HttpWorker) GetSource(reqParam valid.SourceHTTP, page int) (totalPage int, lists string) {
 	// 分页逐个请求
 	reqParam.Param["page"] = page
 	method := strings.ToLower(reqParam.Method)
@@ -114,7 +127,7 @@ func (w *HttpWorker) GetSource(reqParam valid.SourceHTTP, page int) (totalPage i
 	res, err := req.Send()
 	if err != nil {
 		// TODO: httpq请求失败需要重试
-		glog.Error("http request err", "", err.Error())
+		glog.ErrorT("http request err", "", err, reqParam)
 		return
 	}
 	bodyStr, err := res.ToString()
@@ -124,13 +137,6 @@ func (w *HttpWorker) GetSource(reqParam valid.SourceHTTP, page int) (totalPage i
 	}
 	bodyJson := gjson.Parse(bodyStr)
 	totalPage = int(bodyJson.Get("data.pagetag.total_page").Int())
-	// 循环获取数据，
-	listRaw := bodyJson.Get("data.data").String()
-	list = make([]map[string]interface{}, 0, 10)
-	err = json.Unmarshal([]byte(listRaw), &list)
-	if err != nil {
-		glog.Error("http数据源json 解析失败", "", listRaw)
-		return
-	}
+	lists = bodyJson.Get("data.data").String()
 	return
 }

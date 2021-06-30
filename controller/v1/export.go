@@ -15,8 +15,8 @@ func PageDemo(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	pageinfo := httpmd.Pagination{}
 	pageinfo.Format(page, limit, 500)
-	list := make([]interface{}, 0, 10)
-
+	list := make([]interface{}, 1, 10)
+	list[0] = map[string]string{"ID": "编号", "Name": "姓名", "Age": "年龄"}
 	for i := 0; i < pageinfo.Limit; i++ {
 		tmp := struct {
 			ID   int

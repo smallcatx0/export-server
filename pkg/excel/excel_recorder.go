@@ -89,13 +89,17 @@ func List2Arrs(lines []map[string]interface{}, keys []string) [][]interface{} {
 }
 
 // 分页写入
-func (e *ExcelRecorder) WritePagpenate(p Pos, lineJson string, htable string) Pos {
+func (e *ExcelRecorder) WritePagpenate(p Pos, lineJson string, htable string, isFirst bool) Pos {
 	lines := gjson.Parse(lineJson).Array()
 	if htable == "" {
 		htable = lines[0].String()
 		lines = lines[1:]
 	}
 	keys := JsonKeys(htable)
+	// 第一次调用 需要写表头
+	if isFirst {
+		p = e.JsonWrite(p, keys, htable)
+	}
 	for _, aline := range lines {
 		if p.Y >= e.Limit {
 			// 保存文件
@@ -109,8 +113,6 @@ func (e *ExcelRecorder) WritePagpenate(p Pos, lineJson string, htable string) Po
 		}
 		p = e.JsonWrite(p, keys, aline.String())
 	}
-	// 保存
-	e.Save()
 	return p
 }
 
