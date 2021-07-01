@@ -32,19 +32,37 @@ func PageDemo(c *gin.Context) {
 	r.Succ(c, data)
 }
 
-// 数据导出
-func Export(c *gin.Context) {
-	param := &valid.ExportParam{}
-	err := valid.BindAndCheck(c, param)
+// ExportSHttp http接口导出excel
+func ExportSHttp(c *gin.Context) {
+	param := valid.ExpSHttpParam{}
+	err := valid.BindAndCheck(c, &param)
 	if err != nil {
 		r.Fail(c, err)
 		return
 	}
 	exportServ := new(page.ExportServ)
-	data, err := exportServ.Handel(c, param)
+	data, err := exportServ.HandelSHttp(c, &param)
 	if err != nil {
 		r.Fail(c, err)
 		return
 	}
 	r.Succ(c, data)
+}
+
+// ExportSRaw 源数据导出excel
+func ExportSRaw(c *gin.Context) {
+	param := valid.ExpSRawParam{}
+	err := valid.BindAndCheck(c, &param)
+	if err != nil {
+		r.Fail(c, err)
+		return
+	}
+	exportServ := new(page.ExportServ)
+	data, err := exportServ.HandelSRaw(c, &param)
+	if err != nil {
+		r.Fail(c, err)
+		return
+	}
+	r.Succ(c, data)
+
 }

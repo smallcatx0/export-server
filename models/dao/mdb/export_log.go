@@ -1,6 +1,12 @@
 package mdb
 
-import "time"
+import (
+	"errors"
+	"export-server/models/dao"
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type ExportLog struct {
 	Id         int       `gorm:"column:id;primary_key;auto_increment" json:"id"`
@@ -27,3 +33,30 @@ const (
 	ExportLog_status_fail    = 3 // 导出失败
 	ExportLog_status_cancle  = 4 // 导出取消
 )
+
+var (
+	ExportLog_Stype_Http = "http"
+	ExportLog_Stype_Sql  = "sql"
+	ExportLog_Stype_Raw  = "raw"
+	ExportLog_Stypes     = []string{
+		ExportLog_Stype_Http,
+		ExportLog_Stype_Sql,
+		ExportLog_Stype_Raw,
+	}
+)
+
+func (e *ExportLog) HashHeyExisted(hashkey string) bool {
+	err := dao.MDB.Model(e).Where("hash_key = ?", hashkey).First(e).Error
+	return !errors.Is(err, gorm.ErrRecordNotFound)
+}
+
+// 保存失败理由
+func (e *ExportLog) SaveFailReason(reason string) error {
+	db := dao.MDB.Model(e).Updates(
+		map[string]interface{}{
+			"status":      ExportLog_status_fail,
+			"fail_reason": reason,
+		},
+	)
+	return db.Error
+}

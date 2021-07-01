@@ -135,4 +135,5 @@ func InitDB() {
 func InitConsumer() {
 	c := conf.AppConf
 	new(data.HttpWorker).Run(c.GetInt("taskPool.httpWorker"))
+	new(data.RawWorker).Run(c.GetInt("taskPool.rowWorker"))
 }

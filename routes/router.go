@@ -10,5 +10,7 @@ func registeRoute(router *gin.Engine) {
 	router.GET("/demo", v1.Demo)
 	router.GET("/demo/page", v1.PageDemo)
 
-	router.POST("/v1/export", v1.Export)
+	router.POST("/v1/export/http", v1.ExportSHttp)
+	router.POST("/v1/export/raw", v1.ExportSRaw)
+
 }

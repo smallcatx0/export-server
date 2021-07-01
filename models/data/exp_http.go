@@ -23,20 +23,18 @@ import (
 )
 
 type HttpWorker struct {
-	Tasks *rdb.Mq
-	Cli   *request.Core
-	// Doubt: 携程间消息通道是直接沿用消息队列中的结构 还是只留hash_key
-	// 沿用消息队列的结构感觉稍微有点耦合、但是自留hash_key 有损失了可扩展性
+	Tasks  *rdb.Mq
+	Cli    *request.Core
 	taskCh chan *rdb.ExportTask
 }
 
 func (w *HttpWorker) Run(pool int) {
 	// 单消费端 多任务执行
 	w.Tasks = &rdb.Mq{Key: global.TaskHttpKey}
-	w.Cli = request.New("export-server", "", 3000).Debug(true)
+	w.Cli = request.New("export-server", "", 3000).Debug(conf.IsDebug())
 	// 缓冲区越大，程序宕机后丢消息越多
 	w.taskCh = make(chan *rdb.ExportTask, 20)
-	log.Print(pool)
+	log.Print("httpWorker pool=", pool)
 	// 启动工作协程
 	w.startWorker(pool)
 
@@ -51,7 +49,7 @@ func (w *HttpWorker) Run(pool int) {
 	}()
 }
 
-// startWorker 启动工作携程
+// startWorker 启动工作协程
 func (w *HttpWorker) startWorker(pool int) {
 	for i := 0; i < pool; i++ {
 		go func() {
@@ -84,8 +82,11 @@ func (w *HttpWorker) work() {
 	requestParam := valid.SourceHTTP{}
 	err := json.Unmarshal([]byte(expLog.Param), &requestParam)
 	if err != nil {
-		glog.Error("json.Unmarshal err " + err.Error())
-		dao.MDB.Model(&expLog).Update("fail_reason", "参数解析失败："+err.Error())
+		reason := "参数解析失败：" + err.Error()
+		err := expLog.SaveFailReason(reason)
+		if err != nil {
+			glog.Error("udate export_log err", "", err.Error())
+		}
 		return
 	}
 	// TODO: 并行请求 让单个任务更快完成
@@ -117,7 +118,7 @@ func (w *HttpWorker) work() {
 	expLog.Status = mdb.ExportLog_status_succ
 	dao.MDB.Model(&expLog).Select("status").Updates(expLog)
 	// 创建文件数据
-	expFile := mdb.ExportFile{
+	expFile := &mdb.ExportFile{
 		HashKey: expLog.HashKey,
 		Path:    zipFilePath,
 		Type:    expLog.ExtType,

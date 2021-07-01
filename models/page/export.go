@@ -7,78 +7,119 @@ import (
 	"export-server/models/dao"
 	"export-server/models/dao/mdb"
 	"export-server/models/dao/rdb"
+	"export-server/pkg/conf"
 	"export-server/pkg/glog"
+	"export-server/pkg/helper"
 	"export-server/valid"
 	"fmt"
-	"strings"
+	"io/ioutil"
+	"path"
 
 	"github.com/gin-gonic/gin"
 )
 
 type ExportServ struct{}
 
-func (e *ExportServ) Handel(c *gin.Context, param *valid.ExportParam) (ret interface{}, err error) {
-	// 1. 获取参数的哈希
-	// TODO: 当数据源为直传时，要不要将 SourceRaw 也计算到哈希里去
-	paramBt, err := json.Marshal(param)
+// 获取参数哈希
+func (e *ExportServ) paramHash(v interface{}) (hashKey string, err error) {
+	paramBt, err := json.Marshal(v)
 	if err != nil {
-		glog.Error("json.Marshal err", "", err.Error())
 		return
 	}
 	hash := md5.Sum(paramBt)
-	hashKey := fmt.Sprintf("%x", hash)
-	ret = map[string]string{"hash_key": hashKey}
-	// 2. 记录请求日志
-	err = e.RecordLog(hashKey, param)
-	if err != nil {
-		return
-	}
-	// 3. 准备参数丢任务队列中
-	switch strings.ToLower(param.SourceType) {
-	case "http":
-		task := &rdb.ExportTask{
-			TaskID: hashKey,
-		}
-		httpQueue := &rdb.Mq{Key: global.TaskHttpKey}
-		// 消息入队
-		httpQueue.Push(task)
-	}
-
+	hashKey = fmt.Sprintf("%x", hash)
 	return
 }
 
-func (e *ExportServ) RecordLog(hashKey string, param *valid.ExportParam) error {
-	// 存数据库
+func (e *ExportServ) HandelSHttp(c *gin.Context, param *valid.ExpSHttpParam) (ret interface{}, err error) {
+	// 1. 参数哈希
+	hashKey, err := e.paramHash(param)
+	if err != nil {
+		glog.Error("param hash err", "", err.Error())
+	}
+	ret = map[string]string{"hash_key": hashKey}
+
+	// 2. 查询任务是否存在，不存在则记录 存在直接返回
+	if new(mdb.ExportLog).HashHeyExisted(hashKey) {
+		glog.Info("任务已经存在 hash_key=" + hashKey)
+		return
+	}
 	expLog := &mdb.ExportLog{
 		HashKey:    hashKey,
 		Title:      param.Title,
 		ExtType:    param.EXTType,
-		SourceType: param.SourceType,
+		SourceType: mdb.ExportLog_Stype_Http,
 		Callback:   param.CallBack,
 		UserId:     param.UserID,
 	}
-	switch strings.ToLower(param.SourceType) {
-	case "http":
-		sourse, err := json.Marshal(param.SourceHTTP)
-		if err != nil {
-			glog.Error("json.Marshal", "", err.Error())
-			return err
-		}
-		expLog.Param = string(sourse)
-	case "sql":
-		sourse, err := json.Marshal(param.SourceSQL)
-		if err != nil {
-			glog.Error("json.Marshal", "", err.Error())
-			return err
-		}
-		expLog.Param = string(sourse)
-	default:
-		expLog.Param = "{}"
+	source, err := json.Marshal(param.SourceHTTP)
+	if err != nil {
+		glog.Error("json.Marshal err", "", err.Error())
+		return
+	}
+	expLog.Param = string(source)
+	res := dao.MDB.Create(expLog)
+	if res.Error != nil {
+		glog.Error("exportLog insert err", "", res.Error.Error())
+		err = res.Error
+		return
+	}
+
+	// 3. 准备参数丢任务队列中
+	httpQ := &rdb.Mq{
+		Key: global.TaskHttpKey,
+	}
+	httpQ.Push(&rdb.ExportTask{
+		TaskID: hashKey,
+	})
+	return
+}
+
+func (e *ExportServ) HandelSRaw(c *gin.Context, param *valid.ExpSRawParam) (ret interface{}, err error) {
+	// 1. 参数哈希
+	hashKey, err := e.paramHash(param)
+	if err != nil {
+		glog.Error("param hash err", "", err.Error())
+		return
+	}
+	ret = map[string]string{"hash_key": hashKey}
+
+	// 2. 查询任务是否存在，不存在则记录 存在直接返回
+	if new(mdb.ExportLog).HashHeyExisted(hashKey) {
+		glog.Info("任务已经存在 hash_key=" + hashKey)
+		return
+	}
+	// 将参数中的source_raw存到本地文件中
+	paramDir := conf.AppConf.GetString("storage.source_raw")
+	paramSavePath := path.Join(paramDir, hashKey+".json")
+	helper.TouchDir(paramSavePath)
+	err = ioutil.WriteFile(paramSavePath, []byte(param.SourceRaw), 0666)
+	if err != nil {
+		glog.Error("writeFile err", "", err.Error())
+		return
+	}
+
+	expLog := &mdb.ExportLog{
+		HashKey:    hashKey,
+		Title:      param.Title,
+		ExtType:    param.EXTType,
+		SourceType: mdb.ExportLog_Stype_Raw,
+		Callback:   param.CallBack,
+		UserId:     param.UserID,
 	}
 	res := dao.MDB.Create(expLog)
 	if res.Error != nil {
-		glog.Error("exportlog insert err", "", res.Error.Error())
-		return res.Error
+		glog.Error("exportLog insert err", "", res.Error.Error())
+		err = res.Error
+		return
 	}
-	return nil
+
+	// 3. 准备参数丢任务队列中
+	httpQ := &rdb.Mq{
+		Key: global.TaskRawKey,
+	}
+	httpQ.Push(&rdb.ExportTask{
+		TaskID: hashKey,
+	})
+	return
 }

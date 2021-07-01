@@ -90,6 +90,15 @@ func ErrorF(template, requestID string, args ...interface{}) {
 	ZapLoger.Error(msg, zap.String("request_id", requestID))
 }
 
+func ErrorOnly(msg, requestID string, err error) {
+	// 没错就不记录
+	if err == nil {
+		return
+	}
+	extra := []string{err.Error()}
+	ZapLoger.Error(msg, zap.String("request_id", requestID), zap.Strings("extra", extra))
+}
+
 func ErrorT(msg, requestID string, extra ...interface{}) {
 	extSlice := make([]string, 0, len(extra))
 	for _, one := range extra {

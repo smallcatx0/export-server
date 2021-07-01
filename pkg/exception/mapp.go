@@ -15,11 +15,17 @@ var ErrNos = map[uint32]string{
 	609001: "mysql 连接失败",
 	609002: "redis 连接失败",
 	609003: "es 连接失败",
-	609004: "课程优惠信息查询失败",
 }
 
 var (
 	ErrMysql  = NewError(609001, 400)
 	ErrRedis  = NewError(609002, 400)
 	ErrEsPing = NewError(609003, 400)
+)
+
+var (
+	// 参数校验失败
+	ParamInValid = func(msg string) error {
+		return NewError(401, 200, msg)
+	}
 )

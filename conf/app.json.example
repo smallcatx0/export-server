@@ -1,14 +1,15 @@
 {
   "base": {
+    "debug": true,
     "app_name": "export-server",
     "describe" : "标签服务",
     "env": "dev",
     "http_port": "8080"
   },
   "redis": {
-    "open": false,
-    "addr": "127.0.0.1:6379",
-    "db": 1,
+    "open": true,
+    "addr": "redisserv:6379",
+    "db": 0,
     "pwd": "",
     "pool_size": 30,
     "max_reties": 3,
@@ -16,8 +17,8 @@
     "key_prefix": "export-server"
   },
   "mysql":{
-    "dsn": "root:root@tcp(mysqlserv:3306)/test?charset=utf8&parseTime=True&loc=Local",
-    "debug": false,
+    "dsn": "root:root@tcp(mysqlserv:3306)/export?charset=utf8&parseTime=True&loc=Local",
+    "debug": true,
     "maxIdleConns": 10,
     "maxOpenConns": 100,
     "connMaxLifetime" : 6
@@ -25,9 +26,17 @@
   "log": {
     "type": "file",
     "path": "./logs/tags.log",
-    "level": "INFO",
+    "level": "DEBUG",
     "max_size": 32,
     "max_age": 30,
     "max_backups": 300
+  },
+  "taskPool": {
+    "httpWorker" : 1,
+    "rowWorker" : 1
+  },
+  "storage": {
+    "outexcel_tmp": "/tmp/outexcel",
+    "source_raw" : "/tmp/params"
   }
 }
