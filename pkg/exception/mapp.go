@@ -21,6 +21,7 @@ var (
 	ErrMysql  = NewError(609001, 400)
 	ErrRedis  = NewError(609002, 400)
 	ErrEsPing = NewError(609003, 400)
+	ExNotFund = NewException(400, "资源不存在")
 )
 
 var (

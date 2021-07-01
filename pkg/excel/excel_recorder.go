@@ -144,8 +144,6 @@ func x2col(x int) string {
 	return result
 }
 
-// TODO: excel地址转坐标
-
 func JsonKeys(json string) []string {
 	keys := make([]string, 0)
 	gjson.Parse(json).ForEach(func(key, value gjson.Result) bool {

@@ -3,11 +3,13 @@ package page
 import (
 	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"export-server/bootstrap/global"
 	"export-server/models/dao"
 	"export-server/models/dao/mdb"
 	"export-server/models/dao/rdb"
 	"export-server/pkg/conf"
+	"export-server/pkg/exception"
 	"export-server/pkg/glog"
 	"export-server/pkg/helper"
 	"export-server/valid"
@@ -16,9 +18,26 @@ import (
 	"path"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type ExportServ struct{}
+
+// Detail 导出详情查询
+func (e *ExportServ) Detail(key string) (ret interface{}, err error) {
+	reqLog := mdb.ExportLog{}
+	// res := dao.MDB.Where("hash_key=?", key).Select().First(&reqLog)
+	reqRes := make(map[string]interface{}, 5)
+	res := dao.MDB.
+		Model(&reqLog).
+		Select([]string{"id", "hash_key", "title", "ext_type", "source_type", "status", "fail_reason"}).
+		First(&reqRes, "hash_key = ?", key)
+	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		err = exception.ExNotFund
+	}
+	ret = reqRes
+	return
+}
 
 // 获取参数哈希
 func (e *ExportServ) paramHash(v interface{}) (hashKey string, err error) {

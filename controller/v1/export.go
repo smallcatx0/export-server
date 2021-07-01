@@ -3,6 +3,7 @@ package v1
 import (
 	"export-server/middleware/httpmd"
 	"export-server/models/page"
+	"export-server/pkg/exception"
 	"export-server/valid"
 	"strconv"
 
@@ -59,6 +60,22 @@ func ExportSRaw(c *gin.Context) {
 	}
 	exportServ := new(page.ExportServ)
 	data, err := exportServ.HandelSRaw(c, &param)
+	if err != nil {
+		r.Fail(c, err)
+		return
+	}
+	r.Succ(c, data)
+
+}
+
+func ExportDetail(c *gin.Context) {
+	key := c.Query("key")
+	if key == "" {
+		r.Fail(c, exception.ParamInValid("key 不能为空"))
+		return
+	}
+
+	data, err := new(page.ExportServ).Detail(key)
 	if err != nil {
 		r.Fail(c, err)
 		return

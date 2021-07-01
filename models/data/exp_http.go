@@ -128,6 +128,8 @@ func (w *HttpWorker) work() {
 		glog.Error("exportfile insert err", "", res.Error.Error())
 		return
 	}
+	// TODO: 请求回调通知
+
 	log.Print("任务完成 ", atask.TaskID)
 }
 
