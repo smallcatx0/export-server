@@ -25,17 +25,42 @@ type ExportServ struct{}
 
 // Detail 导出详情查询
 func (e *ExportServ) Detail(key string) (ret interface{}, err error) {
-	reqLog := mdb.ExportLog{}
-	// res := dao.MDB.Where("hash_key=?", key).Select().First(&reqLog)
-	reqRes := make(map[string]interface{}, 5)
+	explog := make(map[string]interface{}, 5)
 	res := dao.MDB.
-		Model(&reqLog).
-		Select([]string{"id", "hash_key", "title", "ext_type", "source_type", "status", "fail_reason"}).
-		First(&reqRes, "hash_key = ?", key)
+		Model(&mdb.ExportLog{}).
+		Select([]string{"id", "hash_key", "title", "ext_type", "source_type", "status", "fail_reason", "created_at"}).
+		First(&explog, "hash_key = ?", key)
 	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		err = exception.ExNotFund
+		return
 	}
-	ret = reqRes
+	if !helper.EqualInt(explog["status"], mdb.ExportLog_status_succ) {
+		ret = explog
+		return
+	}
+	expfile := make(map[string]interface{}, 3)
+	res = dao.MDB.
+		Model(&mdb.ExportFile{}).
+		Select([]string{"path", "type", "created_at"}).
+		First(&expfile, "hash_key=?", key)
+	if !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		explog["file"] = expfile
+	}
+	ret = explog
+	return
+}
+
+func (e *ExportServ) History(c *gin.Context, param *valid.ExpLogHistory) (ret interface{}, err error) {
+	explogs := make([]map[string]interface{}, 0, 10)
+	res := dao.MDB.
+		Model(&mdb.ExportLog{}).
+		Select([]string{"id", "hash_key", "title", "ext_type", "source_type", "status", "fail_reason", "created_at"}).
+		Find(&explogs, "user_id = ?", param.Uid)
+	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		err = res.Error
+		return
+	}
+	ret = explogs
 	return
 }
 

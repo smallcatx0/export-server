@@ -100,25 +100,20 @@ func Map2Arr(amap map[string]interface{}, keys []string) []interface{} {
 
 // FolderZip 文件夹压缩
 func FolderZip(src_dir string, zip_file_path string) {
-
 	// 预防：旧文件无法覆盖
 	os.RemoveAll(zip_file_path)
-
 	// 创建：zip文件
 	zipfile, _ := os.Create(zip_file_path)
 	defer zipfile.Close()
-
 	// 打开：zip文件
 	archive := zip.NewWriter(zipfile)
 	defer archive.Close()
-
 	// 遍历路径信息
 	filepath.Walk(src_dir, func(path string, info os.FileInfo, _ error) error {
 		// 如果是源路径，提前进行下一个遍历
 		if path == src_dir {
 			return nil
 		}
-
 		// 获取：文件头信息
 		header, _ := zip.FileInfoHeader(info)
 		header.Name, _ = filepath.Rel(src_dir, path)
@@ -139,4 +134,14 @@ func FolderZip(src_dir string, zip_file_path string) {
 		}
 		return nil
 	})
+}
+
+func EqualInt(v interface{}, expect int) bool {
+	act, ok := v.(int)
+	return ok && act == expect
+}
+
+func EqualStr(v interface{}, expect string) bool {
+	act, ok := v.(string)
+	return ok && act == expect
 }

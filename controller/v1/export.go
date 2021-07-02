@@ -81,5 +81,19 @@ func ExportDetail(c *gin.Context) {
 		return
 	}
 	r.Succ(c, data)
+}
 
+func ExportHistory(c *gin.Context) {
+	param := valid.ExpLogHistory{}
+	err := valid.BindQAndCheck(c, &param)
+	if err != nil {
+		r.Fail(c, err)
+		return
+	}
+	data, err := new(page.ExportServ).History(c, &param)
+	if err != nil {
+		r.Fail(c, err)
+		return
+	}
+	r.Succ(c, data)
 }

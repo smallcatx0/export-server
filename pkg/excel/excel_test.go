@@ -94,3 +94,14 @@ func BenchmarkJson2Excel(b *testing.B) {
 	}
 	excelOj.Save()
 }
+
+func BenchmarkReadBJson(b *testing.B) {
+	input, _ := ioutil.ReadFile("./.assets/list-5000.json")
+	for i := 0; i < b.N; i++ {
+		lines := gjson.Parse(string(input)).Array()
+		for _, line := range lines {
+			_, _ = line.Value().(map[string]interface{})
+		}
+	}
+
+}
