@@ -20,8 +20,7 @@ func main() {
 	app := bootstrap.NewApp(conf.IsDebug())
 	// 初始化操作
 	app.Use(bootstrap.InitLog, bootstrap.InitDB, bootstrap.InitConsumer)
-	app.GinEngibe.Use(httpmd.SetHeader)
-	app.GinEngibe.Use(httpmd.ReqLog)
+	app.GinEngibe.Use(httpmd.SetHeader, httpmd.ReqLog)
 	// 注册路由
 	app.RegisterRoutes(routes.Register)
 	// 启动HTTP 服务
