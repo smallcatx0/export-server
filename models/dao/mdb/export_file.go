@@ -1,6 +1,13 @@
 package mdb
 
-import "time"
+import (
+	"errors"
+	"export-server/models/dao"
+	"export-server/pkg/conf"
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type ExportFile struct {
 	Id        int       `gorm:"column:id" json:"id"`
@@ -12,5 +19,20 @@ type ExportFile struct {
 }
 
 func (e *ExportFile) TableName() string {
-	return "export_file"
+	return "base_export_file"
+}
+
+func (e *ExportFile) DownUrl(key string) string {
+	res := dao.MDB.First(e, "hash_key=?", key)
+	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		return ""
+	}
+	if res.Error != nil {
+		return ""
+	}
+	return OssAbsUrl(e.Path)
+}
+
+func OssAbsUrl(path string) string {
+	return conf.AppConf.GetString("alioss.excel.endpoint_down") + "/" + path
 }

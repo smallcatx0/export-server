@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"export-server/bootstrap/global"
 	"export-server/models/dao"
+	cal "export-server/models/dao/Cal"
 	"export-server/models/dao/mdb"
 	"export-server/models/dao/rdb"
 	"export-server/pkg/conf"
@@ -13,14 +14,19 @@ import (
 	"export-server/valid"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"path"
-	"strings"
+	"sort"
 
-	request "gitee.com/smallcatx0/gequest"
-	"github.com/tidwall/gjson"
+	"github.com/golang-module/carbon"
+	request "gitlab.xthktech.cn/tankui/gequest"
 )
+
+type HttpLoger struct{}
+
+func (l *HttpLoger) Print(logstr string) {
+	glog.Debug("send_http_request", "", logstr)
+}
 
 type HttpWorker struct {
 	Tasks  *rdb.Mq
@@ -31,7 +37,7 @@ type HttpWorker struct {
 func (w *HttpWorker) Run(pool int) {
 	// 单消费端 多任务执行
 	w.Tasks = &rdb.Mq{Key: global.TaskHttpKey}
-	w.Cli = request.New("export-server", "", 3000).Debug(conf.IsDebug())
+	w.Cli = request.New("export-server", "", 10000).SetLoger(&HttpLoger{}).Debug(conf.IsDebug())
 	// 缓冲区越大，程序宕机后丢消息越多
 	w.taskCh = make(chan *rdb.ExportTask, 20)
 	log.Print("httpWorker pool=", pool)
@@ -67,12 +73,15 @@ func (w *HttpWorker) startWorker(pool int) {
 
 // work 处理单个任务
 func (w *HttpWorker) work() {
-	atask := <-w.taskCh
+	currTask := <-w.taskCh
+	taskID := currTask.TaskID
+	request := cal.NewSHttpWCli(w.Cli)
+	st := carbon.Now()
 	// 1. 数据库中查询任务详情
 	expLog := mdb.ExportLog{}
-	result := dao.MDB.Where("hash_key=?", atask.TaskID).First(&expLog)
+	result := dao.MDB.Where("hash_key=?", taskID).First(&expLog)
 	if result.Error != nil {
-		glog.Error("TaskNotFund hash_key=" + atask.TaskID)
+		glog.Error("TaskNotFund hash_key=" + taskID)
 		return
 	}
 	// 任务取消
@@ -83,44 +92,102 @@ func (w *HttpWorker) work() {
 	err := json.Unmarshal([]byte(expLog.Param), &requestParam)
 	if err != nil {
 		reason := "参数解析失败：" + err.Error()
-		err := expLog.SaveFailReason(reason)
-		if err != nil {
-			glog.Error("udate export_log err", "", err.Error())
-		}
+		expLog.SaveFailReason(reason)
+		request.Notify(expLog.Callback, taskID)
 		return
 	}
-	// TODO: 并行请求 让单个任务更快完成
-	// 但也要保证顺序
 
 	// 2. 获取数据源的数据 -> 3. 写入excel
-	totalPage, list := w.getSource(requestParam, 1) // 第一页
-	excelTmpPath := conf.AppConf.GetString("storage.outexcel_tmp")
+	baseParam := &cal.HttpParam{
+		Page:   1,
+		Url:    requestParam.URL,
+		Method: requestParam.Method,
+		Header: requestParam.Header,
+		Param:  requestParam.Param,
+	}
+	// 带上此次任务ID 方便日志追踪
+	if baseParam.Header == nil {
+		baseParam.Header = make(map[string]string)
+	}
+	baseParam.Header["xt-export-taskId"] = taskID
+	totalPage, _, lists, err := request.GetHttpSource(*baseParam)
+	log.Printf("[%s] 总页数 %d", taskID, totalPage)
+	glog.InfoF("[%s] 总页数 %d", taskID, totalPage)
+	if err != nil {
+		reason := "获取数据源失败：" + err.Error()
+		expLog.SaveFailReason(reason)
+		request.Notify(expLog.Callback, taskID)
+		return
+	}
+
+	excelTmpPath := conf.AppConf.GetString("tmp_storage.outexcel_tmp") // excel 临时文件目录
+	maxlines := conf.AppConf.GetInt("excel_maxlines") + 1              // excel 最大行数
+	conn := conf.AppConf.GetInt("http_req_conn") + 1                   // http并发最大请求数
 	filename := expLog.Title + "-%d." + expLog.ExtType
-	excelw := excel.NewExcelRecorderPage(path.Join(excelTmpPath, atask.TaskID, filename), 200)
-	p := excelw.WritePagpenate(excel.Pos{X: 1, Y: 1}, list, "", true)
-	for i := 2; i <= totalPage; i++ { // 循环获取剩下页
-		log.Printf("开始抓取%d页\n", i)
-		_, list = w.getSource(requestParam, i)
-		p = excelw.WritePagpenate(p, list, "", false)
+	excelw := excel.NewExcelRecorderPage(path.Join(excelTmpPath, taskID, filename), maxlines)
+	p := excelw.WritePagpenate(excel.Pos{X: 1, Y: 1}, lists, "", true)
+	i := 2
+	var end bool
+	for { // 获取剩下页
+		params := make([]cal.HttpParam, 0, conn)
+		for j := 0; j < conn; j++ {
+			if i > totalPage {
+				end = true
+				break
+			}
+			baseParam.Page = i
+			params = append(params, *baseParam)
+			log.Printf("[%s] 开始抓取(%d/%d)页\n", taskID, i, totalPage)
+			glog.InfoF("[%s] 开始抓取(%d/%d)页", taskID, i, totalPage)
+			i += 1
+		}
+		respCh := request.MultPageReq(params...)
+		res := make(map[int]string, conn)
+		keys := make([]int, 0, conn)
+		for one := range respCh {
+			if one.Err != nil {
+				expLog.SaveFailReason("请求数据失败：" + one.Err.Error())
+				request.Notify(expLog.Callback, taskID)
+				return
+			}
+			res[one.Page] = one.Lists
+			keys = append(keys, one.Page)
+		}
+		// 有序写入excel
+		sort.Ints(keys)
+		for _, akey := range keys {
+			p = excelw.WritePagpenate(p, res[akey], "", false)
+		}
+		if end {
+			break
+		}
 	}
 	excelw.Save()
 
 	// 4. 压缩文件夹 并删除源文件
-	zipFilePath := path.Join(excelTmpPath, atask.TaskID+".zip")
-	taskDir := path.Join(excelTmpPath, atask.TaskID)
+	zipFilePath := path.Join(excelTmpPath, taskID+".zip")
+	taskDir := path.Join(excelTmpPath, taskID)
 	helper.FolderZip(taskDir, zipFilePath)
 	os.RemoveAll(taskDir)
 
-	// 5. 上传云 OOS -> 删除本地文件
-	// ...
+	// 5. 上传云 OSS -> 删除本地文件
+	// objname, err := aoss.PutExportFile(zipFilePath)
+	// if err != nil {
+	// 	reason := "上传阿里云oss失败：" + err.Error()
+	// 	expLog.SaveFailReason(reason)
+	// 	return
+	// }
+	// os.RemoveAll(zipFilePath)
 
-	// 6. 修改任务状态，写文件
+	// 移动到本地下载目录
+	objname := zipFilePath
+	// 6. 修改任务状态
 	expLog.Status = mdb.ExportLog_status_succ
 	dao.MDB.Model(&expLog).Select("status").Updates(expLog)
 	// 创建文件数据
 	expFile := &mdb.ExportFile{
 		HashKey: expLog.HashKey,
-		Path:    zipFilePath,
+		Path:    objname,
 		Type:    expLog.ExtType,
 	}
 	res := dao.MDB.Create(expFile)
@@ -128,41 +195,8 @@ func (w *HttpWorker) work() {
 		glog.Error("exportfile insert err", "", res.Error.Error())
 		return
 	}
-	// TODO: 请求回调通知
-
-	log.Print("任务完成 ", atask.TaskID)
-}
-
-func (w *HttpWorker) getSource(reqParam valid.SourceHTTP, page int) (totalPage int, lists string) {
-	// 分页逐个请求
-	reqParam.Param["page"] = page
-	method := strings.ToLower(reqParam.Method)
-	req := w.Cli.SetMethod(method).
-		SetUri(reqParam.URL).
-		AddHeaders(reqParam.Header)
-	switch method {
-	case "post":
-		req.SetJson(reqParam.Param)
-	case "get":
-		q := url.Values{}
-		for k, v := range reqParam.Param {
-			q.Add(k, fmt.Sprintf("%v", v))
-		}
-		req.SetQuery(q)
-	}
-	res, err := req.Send()
-	if err != nil {
-		// TODO: httpq请求失败需要重试
-		glog.ErrorT("http request err", "", err, reqParam)
-		return
-	}
-	bodyStr, err := res.ToString()
-	if err != nil {
-		glog.Error("http respons body read err", "", err.Error())
-		return
-	}
-	bodyJson := gjson.Parse(bodyStr)
-	totalPage = int(bodyJson.Get("data.pagetag.total_page").Int())
-	lists = bodyJson.Get("data.data").String()
-	return
+	request.Notify(expLog.Callback, taskID)
+	dt := carbon.Now().DiffInSecondsWithAbs(st)
+	log.Printf("[%s] 任务完成 耗时%ds", taskID, dt)
+	glog.InfoF("[%s] 任务完成 耗时%ds", taskID, dt)
 }

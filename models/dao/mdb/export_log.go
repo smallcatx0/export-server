@@ -23,8 +23,15 @@ type ExportLog struct {
 	UpdatedAt  time.Time `gorm:"column:updated_at" json:"updated_at"`
 }
 
+// 导出详情
+type ExportLogDetail struct {
+	Log     ExportLog  `json:"log"`
+	File    ExportFile `json:"file"`
+	DownUrl string     `json:"down_url"`
+}
+
 func (e *ExportLog) TableName() string {
-	return "export_log"
+	return "base_export_log"
 }
 
 const (
@@ -55,8 +62,35 @@ func (e *ExportLog) SaveFailReason(reason string) error {
 	db := dao.MDB.Model(e).Updates(
 		map[string]interface{}{
 			"status":      ExportLog_status_fail,
-			"fail_reason": reason,
+			"fail_reason": reason[:250],
 		},
 	)
 	return db.Error
+}
+
+func (e *ExportLog) Detail(key string) (detail *ExportLogDetail, err error) {
+	detail = &ExportLogDetail{}
+	exlog := &ExportLog{}
+	res := dao.MDB.First(exlog, "hash_key=?", key)
+	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		return
+	} else if res.Error != nil {
+		err = res.Error
+		return
+	}
+	detail.Log = *exlog
+	if exlog.Status != ExportLog_status_succ {
+		return
+	}
+	file := &ExportFile{}
+	res = dao.MDB.First(file, "hash_key=?", key)
+	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+		return
+	} else if res.Error != nil {
+		err = res.Error
+		return
+	}
+	detail.File = *file
+	detail.DownUrl = OssAbsUrl(file.Path)
+	return
 }

@@ -18,6 +18,7 @@ import (
 	"path"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-module/carbon"
 	"gorm.io/gorm"
 )
 
@@ -38,24 +39,19 @@ func (e *ExportServ) Detail(key string) (ret interface{}, err error) {
 		ret = explog
 		return
 	}
-	expfile := make(map[string]interface{}, 3)
-	res = dao.MDB.
-		Model(&mdb.ExportFile{}).
-		Select([]string{"path", "type", "created_at"}).
-		First(&expfile, "hash_key=?", key)
-	if !errors.Is(res.Error, gorm.ErrRecordNotFound) {
-		explog["file"] = expfile
-	}
+	explog["down_url"] = new(mdb.ExportFile).DownUrl(key)
 	ret = explog
 	return
 }
 
 func (e *ExportServ) History(c *gin.Context, param *valid.ExpLogHistory) (ret interface{}, err error) {
 	explogs := make([]map[string]interface{}, 0, 10)
-	res := dao.MDB.
+	last7d := carbon.Now().SubDays(7).ToDateString()
+	res := dao.MDB.Debug().
 		Model(&mdb.ExportLog{}).
 		Select([]string{"id", "hash_key", "title", "ext_type", "source_type", "status", "fail_reason", "created_at"}).
-		Find(&explogs, "user_id = ?", param.Uid)
+		Order("id DESC").
+		Find(&explogs, "user_id = ? AND created_at > ?", param.Uid, last7d)
 	if res.Error != nil && !errors.Is(res.Error, gorm.ErrRecordNotFound) {
 		err = res.Error
 		return
@@ -93,6 +89,7 @@ func (e *ExportServ) HandelSHttp(c *gin.Context, param *valid.ExpSHttpParam) (re
 		Title:      param.Title,
 		ExtType:    param.EXTType,
 		SourceType: mdb.ExportLog_Stype_Http,
+		Status:     mdb.ExportLog_status_pending,
 		Callback:   param.CallBack,
 		UserId:     param.UserID,
 	}
@@ -149,6 +146,7 @@ func (e *ExportServ) HandelSRaw(c *gin.Context, param *valid.ExpSRawParam) (ret 
 		ExtType:    param.EXTType,
 		SourceType: mdb.ExportLog_Stype_Raw,
 		Callback:   param.CallBack,
+		Status:     mdb.ExportLog_status_pending,
 		UserId:     param.UserID,
 	}
 	res := dao.MDB.Create(expLog)

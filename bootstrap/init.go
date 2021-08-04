@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"export-server/models/dao"
+	"export-server/models/dao/aoss"
 	"export-server/models/data"
 	"export-server/pkg/conf"
 	"export-server/pkg/glog"
@@ -30,12 +31,29 @@ func InitLog() {
 
 // InitDB 初始化db
 func InitDB() {
+	c := conf.AppConf
 	dao.MysqlInit()
 
 	err := dao.InitRedis()
 	if err != nil {
 		panic(err)
 	}
+
+	switch c.GetString("exp_storage.channel") {
+	case "local":
+		// 初始化本地存储层
+	case "alioss":
+		// 初始化阿里云oss
+		aoss.InitAlioss(
+			c.GetString("exp_storage.alioss.endpoint_up"),
+			c.GetString("exp_storage.alioss.key"),
+			c.GetString("exp_storage.alioss.secret"),
+			c.GetString("exp_storage.alioss.bucket"),
+		)
+	default:
+		panic("[storage] no such storage")
+	}
+
 }
 
 // InitConsumer 初始化消费者
