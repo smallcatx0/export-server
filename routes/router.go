@@ -13,5 +13,4 @@ func registeRoute(router *gin.Engine) {
 	router.POST("/v1/export/raw", v1.ExportSRaw)
 	router.GET("/v1/export/detail", v1.ExportDetail)
 	router.GET("/v1/export/history", v1.ExportHistory)
-
 }

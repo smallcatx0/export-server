@@ -1,7 +1,7 @@
 package cal_test
 
 import (
-	cal "export-server/models/dao/Cal"
+	cal "export-server/models/dao/cal"
 	"log"
 	"sort"
 	"testing"

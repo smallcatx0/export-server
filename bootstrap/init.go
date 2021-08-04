@@ -39,9 +39,13 @@ func InitDB() {
 		panic(err)
 	}
 
+	// excel 文件存储层
 	switch c.GetString("exp_storage.channel") {
 	case "local":
 		// 初始化本地存储层
+		dao.InitLocaStore(
+			c.GetString("exp_storage.local.path"),
+		)
 	case "alioss":
 		// 初始化阿里云oss
 		aoss.InitAlioss(

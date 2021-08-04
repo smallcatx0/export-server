@@ -170,17 +170,15 @@ func (w *HttpWorker) work() {
 	helper.FolderZip(taskDir, zipFilePath)
 	os.RemoveAll(taskDir)
 
-	// 5. 上传云 OSS -> 删除本地文件
-	// objname, err := aoss.PutExportFile(zipFilePath)
-	// if err != nil {
-	// 	reason := "上传阿里云oss失败：" + err.Error()
-	// 	expLog.SaveFailReason(reason)
-	// 	return
-	// }
-	// os.RemoveAll(zipFilePath)
+	// 5. 文件持久化（阿里云oss、本地）-> 删除本地文件
+	objname, err := dao.FS.Put(zipFilePath)
+	if err != nil {
+		reason := "文件持久化失败" + err.Error()
+		expLog.SaveFailReason(reason)
+		return
+	}
+	os.RemoveAll(zipFilePath)
 
-	// 移动到本地下载目录
-	objname := zipFilePath
 	// 6. 修改任务状态
 	expLog.Status = mdb.ExportLog_status_succ
 	dao.MDB.Model(&expLog).Select("status").Updates(expLog)

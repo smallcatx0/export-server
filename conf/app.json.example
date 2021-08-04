@@ -36,18 +36,26 @@
     "httpWorker" : 1,
     "rowWorker" : 1
   },
-  "storage": {
+  "tmp_storage": {
     "outexcel_tmp": "/tmp/outexcel",
     "source_raw" : "/tmp/params"
   },
-  "excel_maxlines": 5000,
-  "alioss": {
-    "excel": {
-      "bucket": "bucket",
-      "endpoint_up": "****",
-      "key": "****",
-      "secret": "****",
-      "endpoint_down": "****"
+  "exp_storage": {
+    "channel": "local",
+    "local" : {
+      "path": "/tmp/down",
+      "down_url": "http://127.0.0.1:8080"
+    },
+    "alioss": {
+      "bucket": "*",
+      "endpoint_up": "com",
+      "key": "",
+      "secret": "",
+      "down_url": "https://heykui.oss-cn-beijing.aliyuncs.com"
+    },
+    "ftp": {
+
     }
-  }
+  },
+  "excel_maxlines": 5000
 }

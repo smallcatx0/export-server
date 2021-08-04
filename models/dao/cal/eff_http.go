@@ -78,7 +78,7 @@ func (r *SourceHTTP) GetHttpSource(
 	bodyStr, err := res.ToString()
 	bodyJson := gjson.Parse(bodyStr)
 	statusCode := int(bodyJson.Get("status_code").Int())
-	if statusCode != 200 {
+	if statusCode != 0 {
 		err = errors.New(bodyJson.String())
 		return
 	}

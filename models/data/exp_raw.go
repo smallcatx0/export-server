@@ -4,7 +4,6 @@ import (
 	"export-server/bootstrap/global"
 	"export-server/models/dao"
 	cal "export-server/models/dao/Cal"
-	"export-server/models/dao/aoss"
 	"export-server/models/dao/mdb"
 	"export-server/models/dao/rdb"
 	"export-server/pkg/conf"
@@ -95,10 +94,10 @@ func (w *RawWorker) work() {
 	glog.ErrorOnly("remove Files err path="+taskDir, "", os.RemoveAll(taskDir))
 	glog.ErrorOnly("remove Files err path="+paramFilePath, "", os.Remove(paramFilePath))
 
-	// 5. 上传云 OOS -> 删除本地文件
-	objname, err := aoss.PutExportFile(zipFilePath)
+	// 5. 文件持久化（阿里云oss、本地）-> 删除本地文件
+	objname, err := dao.FS.Put(zipFilePath)
 	if err != nil {
-		reason := "上传阿里云oss失败：" + err.Error()
+		reason := "文件持久化失败" + err.Error()
 		expLog.SaveFailReason(reason)
 		return
 	}

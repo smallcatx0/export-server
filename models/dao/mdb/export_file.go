@@ -19,7 +19,7 @@ type ExportFile struct {
 }
 
 func (e *ExportFile) TableName() string {
-	return "base_export_file"
+	return "export_file"
 }
 
 func (e *ExportFile) DownUrl(key string) string {
@@ -30,9 +30,22 @@ func (e *ExportFile) DownUrl(key string) string {
 	if res.Error != nil {
 		return ""
 	}
-	return OssAbsUrl(e.Path)
+	return HttpAbsUrl(e.Path)
 }
 
-func OssAbsUrl(path string) string {
-	return conf.AppConf.GetString("alioss.excel.endpoint_down") + "/" + path
+func HttpAbsUrl(path string) string {
+	c := conf.AppConf
+	var url string
+	// excel 文件存储层
+	switch c.GetString("exp_storage.channel") {
+	case "local":
+		// 初始化本地存储层
+		url = c.GetString("exp_storage.local.down_url") + "/v1/down/" + path
+	case "alioss":
+		// 初始化阿里云oss
+		url = c.GetString("exp_storage.alioss.down_url") + "/" + path
+	default:
+		url = path
+	}
+	return url
 }

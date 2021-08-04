@@ -31,7 +31,7 @@ type ExportLogDetail struct {
 }
 
 func (e *ExportLog) TableName() string {
-	return "base_export_log"
+	return "export_log"
 }
 
 const (
@@ -91,6 +91,6 @@ func (e *ExportLog) Detail(key string) (detail *ExportLogDetail, err error) {
 		return
 	}
 	detail.File = *file
-	detail.DownUrl = OssAbsUrl(file.Path)
+	detail.DownUrl = HttpAbsUrl(file.Path)
 	return
 }

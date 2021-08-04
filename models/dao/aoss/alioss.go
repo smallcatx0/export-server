@@ -1,6 +1,7 @@
 package aoss
 
 import (
+	"export-server/models/dao"
 	"log"
 	"path/filepath"
 
@@ -8,47 +9,46 @@ import (
 	"github.com/golang-module/carbon"
 )
 
-var Aoss AliOssCli
-
-type AliOssCli struct {
+// 阿里云存储器
+type AliOssStore struct {
 	Cli    *oss.Client
 	Bucket *oss.Bucket
 }
 
 func InitAlioss(endpoint, accesskey, secret, bucket string) {
-	Aoss = AliOssCli{}
-	err := Aoss.Conn(endpoint, accesskey, secret)
+	dao.FS = NewAliOssStore(endpoint, accesskey, secret, bucket)
+}
+
+func NewAliOssStore(endpoint, accesskey, secret, bucket string) (aoss *AliOssStore) {
+	aoss = &AliOssStore{}
+	err := aoss.conn(endpoint, accesskey, secret)
 	if err != nil {
 		log.Panic("[dao] Alioss init err", err.Error())
-	} else {
-		log.Print("[dao] Alioss init succ")
 	}
-	if bucket == "" {
-		return
-	}
-	err = Aoss.SetBucket(bucket)
+	err = aoss.setBucket(bucket)
 	if err != nil {
 		log.Panic("[dao] Alioss select bucket err", err.Error())
 	}
+	log.Print("[dao] Alioss init succ")
+	return
 }
 
-func (a *AliOssCli) Conn(endpoint, accesskey, secret string) (err error) {
+func (a *AliOssStore) conn(endpoint, accesskey, secret string) (err error) {
 	a.Cli, err = oss.New(endpoint, accesskey, secret)
 	if err != nil {
 		return
 	}
 	return
 }
-
-func (a *AliOssCli) SetBucket(bucket string) (err error) {
+func (a *AliOssStore) setBucket(bucket string) (err error) {
 	a.Bucket, err = a.Cli.Bucket(bucket)
 	return
 }
 
-func PutExportFile(localfile string) (objectname string, err error) {
-	timeOj := carbon.Now()
-	_, filename := filepath.Split(localfile)
-	objectname = "export/" + timeOj.Format("Ym/d/") + filename
-	err = Aoss.Bucket.PutObjectFromFile(objectname, localfile)
+func (a *AliOssStore) Put(filename string) (objname string, err error) {
+	t := carbon.Now()
+	_, name := filepath.Split(filename)
+	objname = "export/" + t.Format("Ym/d/") + name
+	err = a.Bucket.PutObjectFromFile(objname, filename)
 	return
 }
