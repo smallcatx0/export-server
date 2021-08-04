@@ -6,6 +6,7 @@ import (
 	"export-server/pkg/exception"
 	"export-server/valid"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -30,10 +31,11 @@ func PageDemo(c *gin.Context) {
 		"pagetag": pageinfo,
 		"data":    list,
 	}
+	time.Sleep(time.Second)
 	r.Succ(c, data)
 }
 
-// ExportSHttp http接口导出excel
+// ExportSHttp http数据源导出excel
 func ExportSHttp(c *gin.Context) {
 	param := valid.ExpSHttpParam{}
 	err := valid.BindAndCheck(c, &param)

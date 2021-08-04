@@ -2,7 +2,7 @@
   "base": {
     "debug": true,
     "app_name": "export-server",
-    "describe" : "标签服务",
+    "describe" : "通用导出服务",
     "env": "dev",
     "http_port": "8080"
   },
@@ -25,12 +25,13 @@
   },
   "log": {
     "type": "file",
-    "path": "./logs/tags.log",
+    "path": "./logs/log.log",
     "level": "DEBUG",
     "max_size": 32,
     "max_age": 30,
     "max_backups": 300
   },
+  "http_req_conn": 10,
   "taskPool": {
     "httpWorker" : 1,
     "rowWorker" : 1
@@ -38,5 +39,15 @@
   "storage": {
     "outexcel_tmp": "/tmp/outexcel",
     "source_raw" : "/tmp/params"
+  },
+  "excel_maxlines": 5000,
+  "alioss": {
+    "excel": {
+      "bucket": "bucket",
+      "endpoint_up": "****",
+      "key": "****",
+      "secret": "****",
+      "endpoint_down": "****"
+    }
   }
 }
