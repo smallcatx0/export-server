@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	request "gitee.com/smallcatx0/gequest"
 	"github.com/tidwall/gjson"
-	request "gitlab.xthktech.cn/tankui/gequest"
 )
 
 type SourceHTTP struct {

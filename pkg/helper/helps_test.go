@@ -4,6 +4,7 @@ import (
 	"export-server/pkg/helper"
 	"testing"
 
+	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,4 +39,17 @@ func TestMap2Arr(t *testing.T) {
 func TestZip(t *testing.T) {
 	ssrc := `D:\tmp\outExcel\a807a70cc66eeb3c0ff24450c6caed88`
 	helper.FolderZip(ssrc, `D:\tmp\outExcel\out.zip`)
+}
+
+func TestEq(t *testing.T) {
+	Convey("[fun] EqualInt", t, func() {
+		var x interface{} = 1
+		So(true, ShouldEqual, helper.EqualInt(x, 1))
+		So(false, ShouldEqual, helper.EqualInt(x, 2))
+
+		var s interface{} = "hanmeimei"
+		So(true, ShouldEqual, helper.EqualStr(s, "hanmeimei"))
+		So(false, ShouldEqual, helper.EqualStr(s, "lilei"))
+		So(true, ShouldNotEqual, helper.EqualStr(s, "lilei"))
+	})
 }

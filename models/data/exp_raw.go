@@ -3,7 +3,7 @@ package data
 import (
 	"export-server/bootstrap/global"
 	"export-server/models/dao"
-	cal "export-server/models/dao/Cal"
+	cal "export-server/models/dao/cal"
 	"export-server/models/dao/mdb"
 	"export-server/models/dao/rdb"
 	"export-server/pkg/conf"

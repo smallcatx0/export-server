@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"export-server/bootstrap/global"
 	"export-server/models/dao"
-	cal "export-server/models/dao/Cal"
+	cal "export-server/models/dao/cal"
 	"export-server/models/dao/mdb"
 	"export-server/models/dao/rdb"
 	"export-server/pkg/conf"
@@ -18,8 +18,8 @@ import (
 	"path"
 	"sort"
 
+	request "gitee.com/smallcatx0/gequest"
 	"github.com/golang-module/carbon"
-	request "gitlab.xthktech.cn/tankui/gequest"
 )
 
 type HttpLoger struct{}
