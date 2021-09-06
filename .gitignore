@@ -4,3 +4,5 @@ go.sum
 *.exe
 logs/*
 __debug_bin
+
+unittest_env

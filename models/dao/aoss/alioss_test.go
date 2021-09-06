@@ -3,33 +3,55 @@ package aoss_test
 import (
 	"export-server/models/dao"
 	"export-server/models/dao/aoss"
+	"log"
 	"testing"
 
 	"github.com/golang-module/carbon"
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
 var fs dao.FileStorage
 var alioss *aoss.AliOssStore
+var C *viper.Viper
+
+func ConfInit() {
+	C = viper.New()
+	C.SetConfigFile("./unittest_env")
+	C.SetConfigType("toml")
+	err := C.ReadInConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if C.GetString("v") != "1.0.0" {
+		log.Fatal("读取配置文件失败")
+	}
+}
 
 func setup() {
-	alioss = aoss.NewAliOssStore("oss-cn-beijing.aliyuncs.com", "LTAIo3aI8hHfCfhX", "VHYxiMjjOTl9VUwdqg6OfBpmQ1RjRO", "heykui")
+	ConfInit()
+	alioss = aoss.NewAliOssStore(
+		"oss-cn-beijing.aliyuncs.com",
+		C.GetString("AOSS_KEY"),
+		C.GetString("AOSS_SECRET"),
+		"heykui",
+	)
 	fs = alioss
 }
 
 func TestUpFile(t *testing.T) {
-	ass := assert.New(t)
 	setup()
-	localFile := "D:\\tmp\\outexcel\\8acbf7ec30e225f570e943e541323d3d.zip"
-	err := alioss.Bucket.PutObjectFromFile("export/test.zip", localFile)
+	ass := assert.New(t)
+	localFile := "D:\\tmp\\1.png"
+	err := alioss.Bucket.PutObjectFromFile("export/1.png", localFile)
 	ass.NoError(err)
 }
 
 func TestExportPut(t *testing.T) {
-	ass := assert.New(t)
 	setup()
-	localFile := "D:\\tmp\\outexcel\\8acbf7ec30e225f570e943e541323d3d.zip"
+	ass := assert.New(t)
+	localFile := "D:\\tmp\\1.png"
 	objname, err := fs.Put(localFile)
-	ass.Equal(objname, "export/"+carbon.Now().Format("Ym/d/")+"8acbf7ec30e225f570e943e541323d3d.zip")
+	ass.Equal(objname, "export/"+carbon.Now().Format("Ym/d/")+"1.png")
 	ass.NoError(err)
 }
