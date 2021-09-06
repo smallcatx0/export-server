@@ -170,13 +170,13 @@ curl --location --request POST 'http://127.0.0.1:8080/v1/export/http' \
 
 
 
-![时序图](https://gitee.com/smallcatx0/export-server/blob/master/Doc/时序图.png)
+![时序图](https://gitee.com/smallcatx0/export-server/raw/master/Doc/%E6%97%B6%E5%BA%8F%E5%9B%BE.png)
 
 
 
 ## 接口文档
 
-接口文档详细见[接口文档]([Doc/接口文档.md · 少猫子/export-server - 码云 - 开源中国 (gitee.com)](https://gitee.com/smallcatx0/export-server/blob/master/Doc/接口文档.md))
+接口文档详细见[接口文档](https://gitee.com/smallcatx0/export-server/blob/master/Doc/接口文档.md)
 
 ### http数据源示例
 
