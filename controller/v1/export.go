@@ -6,7 +6,6 @@ import (
 	"export-server/pkg/exception"
 	"export-server/valid"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +15,7 @@ func PageDemo(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	pageinfo := httpmd.Pagination{}
-	pageinfo.Format(page, limit, 500)
+	pageinfo.Format(page, limit, 100)
 	list := make([]interface{}, 1, 10)
 	list[0] = map[string]string{"ID": "编号", "Name": "姓名", "Age": "年龄"}
 	for i := 0; i < pageinfo.Limit; i++ {
@@ -31,7 +30,6 @@ func PageDemo(c *gin.Context) {
 		"pagetag": pageinfo,
 		"data":    list,
 	}
-	time.Sleep(time.Second)
 	r.Succ(c, data)
 }
 

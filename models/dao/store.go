@@ -4,7 +4,6 @@ import (
 	"export-server/pkg/helper"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/golang-module/carbon"
 )
@@ -29,8 +28,8 @@ func (f *LocalStore) Put(filename string) (objname string, err error) {
 	_, name := filepath.Split(filename)
 	objname = filepath.Join(
 		f.Path,
-		strconv.Itoa(t.Year())+strconv.Itoa(t.Month()),
-		strconv.Itoa(t.Day()),
+		t.Format("ym"),
+		t.Format("d"),
 		name,
 	)
 	helper.TouchDir(objname)

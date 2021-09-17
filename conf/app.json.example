@@ -31,7 +31,6 @@
     "max_age": 30,
     "max_backups": 300
   },
-  "http_req_conn": 10,
   "taskPool": {
     "httpWorker" : 1,
     "rowWorker" : 1

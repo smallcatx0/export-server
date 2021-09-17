@@ -1,6 +1,7 @@
 package valid
 
 type SourceHTTP struct {
+	Conn   int                    `json:"conn"`
 	URL    string                 `json:"url"`
 	Method string                 `json:"method"`
 	Header map[string]string      `json:"header"`

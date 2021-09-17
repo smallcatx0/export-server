@@ -16,30 +16,22 @@ import (
 	"log"
 	"os"
 	"path"
-	"sort"
 
-	request "gitee.com/smallcatx0/gequest"
 	"github.com/golang-module/carbon"
 )
 
-type HttpLoger struct{}
-
-func (l *HttpLoger) Print(logstr string) {
-	glog.Debug("send_http_request", "", logstr)
-}
-
 type HttpWorker struct {
 	Tasks  *rdb.Mq
-	Cli    *request.Core
 	taskCh chan *rdb.ExportTask
+	req    *cal.SourceHTTP
 }
 
 func (w *HttpWorker) Run(pool int) {
 	// 单消费端 多任务执行
 	w.Tasks = &rdb.Mq{Key: global.TaskHttpKey}
-	w.Cli = request.New("export-server", "", 10000).SetLoger(&HttpLoger{}).Debug(conf.IsDebug())
 	// 缓冲区越大，程序宕机后丢消息越多
 	w.taskCh = make(chan *rdb.ExportTask, 20)
+	w.req = cal.NewSourceHTTP()
 	log.Print("httpWorker pool=", pool)
 	// 启动工作协程
 	w.startWorker(pool)
@@ -75,7 +67,6 @@ func (w *HttpWorker) startWorker(pool int) {
 func (w *HttpWorker) work() {
 	currTask := <-w.taskCh
 	taskID := currTask.TaskID
-	request := cal.NewSHttpWCli(w.Cli)
 	st := carbon.Now()
 	// 1. 数据库中查询任务详情
 	expLog := mdb.ExportLog{}
@@ -93,7 +84,7 @@ func (w *HttpWorker) work() {
 	if err != nil {
 		reason := "参数解析失败：" + err.Error()
 		expLog.SaveFailReason(reason)
-		request.Notify(expLog.Callback, taskID)
+		w.req.Notify(expLog.Callback, taskID)
 		return
 	}
 
@@ -110,53 +101,55 @@ func (w *HttpWorker) work() {
 		baseParam.Header = make(map[string]string)
 	}
 	baseParam.Header["xt-export-taskId"] = taskID
-	totalPage, _, lists, err := request.GetHttpSource(*baseParam)
-	log.Printf("[%s] 总页数 %d", taskID, totalPage)
-	glog.InfoF("[%s] 总页数 %d", taskID, totalPage)
+	// 第一次请求 获取分页信息
+	page, totalPage, lists, err := w.req.FirstPage(baseParam)
+	log.Printf("[%s] 抓取到(%d/%d)页\n", taskID, page, totalPage)
+	glog.InfoF("抓取到 (%d/%d)页", taskID, page, totalPage)
 	if err != nil {
 		reason := "获取数据源失败：" + err.Error()
 		expLog.SaveFailReason(reason)
-		request.Notify(expLog.Callback, taskID)
+		w.req.Notify(expLog.Callback, taskID)
 		return
 	}
-
+	// 读配置
 	excelTmpPath := conf.AppConf.GetString("tmp_storage.outexcel_tmp") // excel 临时文件目录
 	maxlines := conf.AppConf.GetInt("excel_maxlines") + 1              // excel 最大行数
-	conn := conf.AppConf.GetInt("http_req_conn") + 1                   // http并发最大请求数
+
+	conn := 1 // 默认无并发
+	if requestParam.Conn != 0 {
+		conn = requestParam.Conn
+	}
 	filename := expLog.Title + "-%d." + expLog.ExtType
-	excelw := excel.NewExcelRecorderPage(path.Join(excelTmpPath, taskID, filename), maxlines)
+	excelw := excel.NewExcelRecorderPage(
+		path.Join(excelTmpPath, taskID, filename),
+		maxlines,
+	)
+	// 写入第一页
 	p := excelw.WritePagpenate(excel.Pos{X: 1, Y: 1}, lists, "", true)
-	i := 2
+	page += 1
 	var end bool
 	for { // 获取剩下页
 		params := make([]cal.HttpParam, 0, conn)
 		for j := 0; j < conn; j++ {
-			if i > totalPage {
+			if page > totalPage {
 				end = true
 				break
 			}
-			baseParam.Page = i
+			baseParam.Page = page
 			params = append(params, *baseParam)
-			log.Printf("[%s] 开始抓取(%d/%d)页\n", taskID, i, totalPage)
-			glog.InfoF("[%s] 开始抓取(%d/%d)页", taskID, i, totalPage)
-			i += 1
+			log.Printf("[%s] 开始抓取(%d/%d)页\n", taskID, page, totalPage)
+			glog.InfoF("开始抓取(%d/%d)页", taskID, page, totalPage)
+			page += 1
 		}
-		respCh := request.MultPageReq(params...)
-		res := make(map[int]string, conn)
-		keys := make([]int, 0, conn)
-		for one := range respCh {
-			if one.Err != nil {
-				expLog.SaveFailReason("请求数据失败：" + one.Err.Error())
-				request.Notify(expLog.Callback, taskID)
-				return
-			}
-			res[one.Page] = one.Lists
-			keys = append(keys, one.Page)
+		lists, err := w.req.BatchRequest(params...)
+		if err != nil {
+			reason := "获取数据源失败：" + err.Error()
+			expLog.SaveFailReason(reason)
+			w.req.Notify(expLog.Callback, taskID)
 		}
-		// 有序写入excel
-		sort.Ints(keys)
-		for _, akey := range keys {
-			p = excelw.WritePagpenate(p, res[akey], "", false)
+		// 结果写入
+		for _, alist := range lists {
+			p = excelw.WritePagpenate(p, alist, "", false)
 		}
 		if end {
 			break
@@ -193,8 +186,8 @@ func (w *HttpWorker) work() {
 		glog.Error("exportfile insert err", "", res.Error.Error())
 		return
 	}
-	request.Notify(expLog.Callback, taskID)
+	w.req.Notify(expLog.Callback, taskID)
 	dt := carbon.Now().DiffInSecondsWithAbs(st)
 	log.Printf("[%s] 任务完成 耗时%ds", taskID, dt)
-	glog.InfoF("[%s] 任务完成 耗时%ds", taskID, dt)
+	glog.InfoF("任务完成 耗时%ds", taskID, dt)
 }

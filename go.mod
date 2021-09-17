@@ -3,7 +3,6 @@ module export-server
 go 1.14
 
 require (
-	gitee.com/smallcatx0/gequest v1.1.1
 	github.com/360EntSecGroup-Skylar/excelize v1.4.1
 	github.com/aliyun/aliyun-oss-go-sdk v2.1.10+incompatible
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
@@ -15,11 +14,11 @@ require (
 	github.com/lestrrat-go/strftime v1.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/satori/go.uuid v1.2.0
+	github.com/smallcatx0/gequest v1.1.5
 	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/viper v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/tidwall/gjson v1.8.1
-	go.opentelemetry.io/otel v0.20.0 // indirect
 	go.uber.org/zap v1.18.1
 	gorm.io/driver/mysql v1.1.1
 	gorm.io/gorm v1.21.12
