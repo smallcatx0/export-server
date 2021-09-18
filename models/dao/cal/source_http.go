@@ -143,8 +143,7 @@ func (s *SourceHTTP) BatchRequest(params ...HttpParam) (
 		reqs = append(reqs, &aReq)
 	}
 	// 并发请求
-	// TODO: 重试次数
-	multRes := request.MultRequest(reqs...)
+	multRes := request.MultRequest(5, reqs...)
 	for _, one := range multRes {
 		var alist string
 		if err = one.Err; err != nil {
