@@ -77,8 +77,10 @@ func (s *SourceHTTP) BuildReq(param *HttpParam) request.Core {
 		query["limit"] = 50
 	}
 	method := strings.ToUpper(param.Method)
-	// TODO: 这里应该新建一个 request.Core 对象
-	req := s.Cli.SetMethod(method).
+	req := request.New("export-server", "", 1000).
+		Debug(conf.IsDebug()).
+		SetLoger(Logger{}).
+		SetMethod(method).
 		SetUri(param.Url).
 		SetHeaders(param.Header)
 	switch method {
