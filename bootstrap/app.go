@@ -81,7 +81,7 @@ var (
 )
 
 func InitFlag() {
-	flag.StringVar(&Param.C, "config", "conf/app.json", "配置文件地址")
+	flag.StringVar(&Param.C, "config", "conf/app.yaml", "配置文件地址")
 	flag.BoolVar(&Param.H, "help", false, "帮助")
 }
 

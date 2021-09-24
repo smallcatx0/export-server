@@ -52,70 +52,67 @@ go build -o ./export-serv .
 
 ### 配置文件
 
-> **!!!一个小细节!!!** json 并不支持注释，所以请在启动前检查配置文件中注释是否删干净
+```yaml
+# 基础配置
+app_name: export-server #服务唯一名
+debug: true
+env: dev
+http_port: 80
+describe: 通用导出服务
+# redis 配置
+redis:
+  open: true
+  addr: redis-serv:6379
+  db: 0
+  pwd: ''
+  pool_size: 30
+  max_reties: 3
+  idle_timeout: 1000
+# mysql 配置
+mysql:
+  dsn: 'root:123123@tcp(mysql-serv:3306)/export?charset=utf8&parseTime=True&loc=Local'
+  debug: true
+  maxIdleConns: 10
+  maxOpenConns: 100
+  connMaxLifetime: 6
+# 日志配置
+log:
+  type: file #可选 file stdout
+  level: DEBUG 
+  path: "./logs/log.log"
+  max_size: 32
+  max_age: 30
+  max_backups: 300
 
-```json
-{
-  "base": { // 基础配置
-    "debug": true,
-    "app_name": "export-server",
-    "describe" : "通用导出服务",
-    "env": "dev",
-    "http_port": "8080"
-  },
-  "redis": { // redis 配置
-    "open": true,
-    "addr": "redis-serv:6379",
-    "db": 0,
-    "pwd": "",
-    "pool_size": 30, 
-    "max_reties": 3,
-    "idle_timeout": 1000,
-    "key_prefix": "export-server"
-  },
-  "mysql":{ // mysql 配置
-    "dsn": "root:root@tcp(mysql-serv:3306)/export?charset=utf8&parseTime=True&loc=Local",
-    "debug": true,
-    "maxIdleConns": 10,
-    "maxOpenConns": 100,
-    "connMaxLifetime" : 6
-  },
-  "log": {  // 日志文件配置
-    "type": "file",
-    "path": "./logs/log.log",
-    "level": "DEBUG",
-    "max_size": 32,
-    "max_age": 30,
-    "max_backups": 300
-  },
-  "http_req_conn": 10, // 使用http数据源时 默认并发数
-  "taskPool": {        // 导出服务 worker 数量
-    "httpWorker" : 1,  // http数据源 worker 数量
-    "rowWorker" : 1    // 直接数据源 worker 数量
-  },
-  "tmp_storage": { // 临时目录
-    "outexcel_tmp": "/tmp/outexcel",  // 生成excel存放的临时目录 任务进行中的数据 任务结束后会自动删除
-    "source_raw" : "/tmp/params" // 直接数据源 的参数存储临时目录
-  },
-  "exp_storage": { // 导出结果存储介质
-    "channel": "local",  // 选择存储介质:支持本地存储、阿里云oss
-    "local" : {          // 本地存储配置
-      "path": "/tmp/down",
-      "down_url": "http://127.0.0.1:8080" // 下载域名
-    },
-    "alioss": {  // 阿里云oss 配置
-      "bucket": "*",
-      "endpoint_up": "com",
-      "key": "",
-      "secret": "",
-      "down_url": "https://heykui.oss-cn-beijing.aliyuncs.com"
-    },
-    "ftp": { // TODO: FTP 存储配置
+# 临时存储文件设置
+storage:
+  outexcel_tmp: "/tmp/outexcel" # 生成excel存放的临时目录 任务进行中的数据 任务结束后会自动删除
+  source_raw: "/tmp/params"     # 直接数据源 的参数存储临时目录
 
-    }
-  },
-  "excel_maxlines": 5000  // excel 文件最大行数（数据量超过会生成多个文件）
-}
+http_req_conn: 5     # http数据源导出，爬取默认并发数 请求参数中可覆盖该值
+excel_maxlines: 5000 # excel文件最大行数（数据量超过会生成多个文件）
+
+# 消费者数量
+taskPool:
+  httpWorker: 1 # http数据源 worker 数量
+  rowWorker: 1  # 直接数据源 worker 数量
+
+# 导出结果存储介质
+exp_storage:
+  # 选择存储通道
+  channel: local # 选择存储介质:支持本地存储、阿里云oss
+  # 本地存储
+  local:
+    path: "/tmp/down"
+    down_url: http://127.0.0.1  # 需自行起一个nginx做文件下载服务
+  # 阿里云oss
+  alioss:
+    bucket: heykui
+    endpoint_up: oss-cn-beijing.aliyuncs.com
+    key: '*****'
+    secret: '*******'
+    endpoint_down: https://heykui.oss-cn-beijing.aliyuncs.com
+  # TODO: ftp
 ```
 
 ### 数据库结构
