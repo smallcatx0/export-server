@@ -45,9 +45,9 @@ go build -o ./export-serv .
 ./export-serv -help
 #-----output--------
 #  -config string
-#        配置文件地址 (default "conf/app.json")
+#       配置文件地址 (default "conf/app.yaml")
 #  -help
-#        帮助
+#       帮助
 ```
 
 ### 配置文件

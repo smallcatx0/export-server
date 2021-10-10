@@ -1,5 +1,12 @@
 package valid
 
+import (
+	"export-server/pkg/conf"
+	"export-server/pkg/exception"
+
+	"github.com/golang-module/carbon"
+)
+
 type SourceHTTP struct {
 	Conn   int                    `json:"conn"`
 	URL    string                 `json:"url"`
@@ -23,11 +30,14 @@ type ExpSHttpParam struct {
 }
 
 func (param *ExpSHttpParam) Valid() error {
+	if conf.IsDebug() {
+		return nil
+	}
 	// 时间戳与当前时间差距不可大于5s
-	// diff := carbon.Now().DiffInSecondsWithAbs(carbon.CreateFromTimestamp(param.Timestamp))
-	// if diff >= 5 {
-	// 	return exception.ParamInValid("请求时间与标准时间差不可大于5s")
-	// }
+	diff := carbon.Now().DiffInSecondsWithAbs(carbon.CreateFromTimestamp(param.Timestamp))
+	if diff >= 5 {
+		return exception.ParamInValid("请求时间与标准时间差不可大于5s")
+	}
 	return nil
 }
 
@@ -41,11 +51,14 @@ type ExpSRawParam struct {
 }
 
 func (param *ExpSRawParam) Valid() error {
+	if conf.IsDebug() {
+		return nil
+	}
 	// 时间戳与当前时间差距不可大于5s
-	// diff := carbon.Now().DiffInSecondsWithAbs(carbon.CreateFromTimestamp(param.Timestamp))
-	// if diff >= 5 {
-	// 	return exception.ParamInValid("请求时间与标准时间差不可大于5s")
-	// }
+	diff := carbon.Now().DiffInSecondsWithAbs(carbon.CreateFromTimestamp(param.Timestamp))
+	if diff >= 5 {
+		return exception.ParamInValid("请求时间与标准时间差不可大于5s")
+	}
 	return nil
 }
 
